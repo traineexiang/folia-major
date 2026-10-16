@@ -47,6 +47,8 @@ const quillLogin: LibraryLoginSessionSnapshot = {
     id: 3,
     providerId: 'quill',
     phase: 'expired',
+    kind: 'qr',
+    cookieError: null,
     methods: [
         { id: 'qq', labelKey: 'home.qqLoginMethodQq', iconKey: 'qq' },
         { id: 'wechat', labelKey: 'home.qqLoginMethodWechat', iconKey: 'wechat' },

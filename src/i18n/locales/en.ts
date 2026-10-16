@@ -1313,6 +1313,26 @@ export default {
     "loginTitleQq": "Scan to sign in to QQ Music",
     "loginTitleBodian": "Scan with Bodian Music",
     "loginNoteBodian": "Scan this code with the Bodian Music app and confirm sign-in",
+    "cookieLoginUseGrid": "YouTube Music signs in with a pasted cookie. Switch the library to the Grid interface to sign in.",
+    "loginTitleYtMusic": "Sign in to YouTube Music",
+    "loginNoteYtMusic": "Google does not allow signing in inside Folia, so you hand over the sign-in from your browser once.",
+    "ytmusicCookieLogin": {
+      "steps": [
+        "Open music.youtube.com in a private (incognito) window and sign in.",
+        "Open DevTools (⌥⌘I) → Network → Fetch/XHR, then click Library on the page.",
+        "Click a request named “browse” → Headers → Request Headers → right-click the cookie value → Copy value.",
+        "Close the private window, then paste the value below."
+      ],
+      "openSite": "Open music.youtube.com",
+      "field": "Cookie",
+      "placeholder": "Paste the cookie value here",
+      "submit": "Sign in",
+      "submitting": "Checking with YouTube…",
+      "storage": "Stored encrypted on this computer only. Never paste it anywhere else.",
+      "error_invalid": "This is not a complete sign-in cookie (SAPISID or __Secure-3PSID is missing). Copy the whole cookie value again.",
+      "error_rejected": "YouTube did not accept this cookie. It may have expired - copy a fresh one from a new private window.",
+      "error_failed": "Could not reach YouTube Music. Check your connection and try again."
+    },
     "loginNoteQq": "Choose the sign-in method matching your account: QQ scan or WeChat scan",
     "qqLoginMethodTitle": "Choose sign-in method",
     "qqLoginMethodHint": "Use QQ scan for a QQ account, or WeChat scan for a WeChat account",

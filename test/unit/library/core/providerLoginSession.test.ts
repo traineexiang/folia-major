@@ -82,6 +82,8 @@ describe('providerLoginSession', () => {
         onConfirmed = vi.fn<ProviderLoginConfirmedHandler>();
         auth = {
             resolveQrLoginMethods: vi.fn().mockResolvedValue([]),
+            supportsCookieLogin: vi.fn().mockReturnValue(false),
+            loginWithCookie: vi.fn().mockResolvedValue(undefined),
             getProviderCapabilities: vi.fn().mockReturnValue({ auth: true }),
             createQrLogin: vi.fn().mockResolvedValue({ key: 'qr-key-1', imageUrl: 'qr-1.png' }),
             checkQrLogin: vi.fn().mockResolvedValue({ state: 'waiting' } satisfies QrLoginState),
@@ -573,6 +575,8 @@ describe('providerLoginSession · failures, serial requests, cooldown and self-c
         onConfirmed = vi.fn<ProviderLoginConfirmedHandler>();
         auth = {
             resolveQrLoginMethods: vi.fn().mockResolvedValue([]),
+            supportsCookieLogin: vi.fn().mockReturnValue(false),
+            loginWithCookie: vi.fn().mockResolvedValue(undefined),
             getProviderCapabilities: vi.fn().mockReturnValue({ auth: true }),
             createQrLogin: vi.fn().mockResolvedValue({ key: 'qr-key-1', imageUrl: 'qr-1.png' }),
             checkQrLogin: vi.fn().mockResolvedValue({ state: 'waiting' } satisfies QrLoginState),

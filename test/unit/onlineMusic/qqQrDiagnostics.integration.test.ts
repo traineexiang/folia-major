@@ -46,6 +46,8 @@ const createSession = async () => {
     const qqAuth = qqProvider.auth!;
     const auth: LibraryAccountAuthPort = {
         resolveQrLoginMethods: async () => [],
+        supportsCookieLogin: () => false,
+        loginWithCookie: async () => {},
         createQrLogin: async (_providerId, methodId) => {
             const key = await qqAuth.getQrKey!(methodId);
             return { key, imageUrl: await qqAuth.createQr!(key) };

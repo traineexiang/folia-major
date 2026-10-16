@@ -115,6 +115,11 @@ export type LibraryLoginView = {
     selfCheck: LibraryLoginSelfCheckView | null;
     retryLabel: string;
     closeLabel: string;
+    /**
+     * cookie 登录（kind=cookie）在没有粘贴框的 suite 里显示的说明；扫码登录为 null。
+     * 只有 grid 画了粘贴框，tui / bravais 用它代替二维码位。
+     */
+    cookieNotice: string | null;
 };
 
 /** 翻译失败后的自检（纯函数）。 */
@@ -176,6 +181,7 @@ export const translateLoginSession = (
     return {
         session,
         visible: isLoginDialogVisible(session),
+        cookieNotice: session.kind === 'cookie' ? t('home.cookieLoginUseGrid') : null,
         canRetry: canRetryLogin(session),
         canShowDiagnostics: canShowLoginDiagnostics(session),
         title: translateHomeMessage(t, copy.title),

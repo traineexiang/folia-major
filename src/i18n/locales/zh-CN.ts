@@ -1312,6 +1312,26 @@ export default {
     "loginTitleQq": "扫码登录QQ音乐",
     "loginTitleBodian": "使用波点音乐 App 扫码",
     "loginNoteBodian": "打开波点音乐 App 扫描二维码并确认登录",
+    "cookieLoginUseGrid": "YouTube Music 需要粘贴 cookie 登录。请把资料库切换到网格界面后再登录。",
+    "loginTitleYtMusic": "登录 YouTube Music",
+    "loginNoteYtMusic": "Google 不允许在 Folia 里直接登录，需要从浏览器把登录状态交过来一次。",
+    "ytmusicCookieLogin": {
+      "steps": [
+        "在浏览器的无痕窗口打开 music.youtube.com 并登录。",
+        "打开开发者工具（⌥⌘I）→ Network → Fetch/XHR，然后在页面上点一下「媒体库」。",
+        "点开名为「browse」的请求 → Headers → Request Headers → 右键 cookie 的值 → Copy value。",
+        "关闭无痕窗口，再把值粘贴到下面。"
+      ],
+      "openSite": "打开 music.youtube.com",
+      "field": "Cookie",
+      "placeholder": "在这里粘贴 cookie 的值",
+      "submit": "登录",
+      "submitting": "正在向 YouTube 验证…",
+      "storage": "只加密保存在这台电脑上。不要把它粘贴到别的地方。",
+      "error_invalid": "这不是完整的登录 cookie（缺少 SAPISID 或 __Secure-3PSID）。请重新复制完整的 cookie 值。",
+      "error_rejected": "YouTube 没有接受这个 cookie，可能已过期。请在新的无痕窗口里重新复制。",
+      "error_failed": "连不上 YouTube Music。请检查网络后重试。"
+    },
     "loginNoteQq": "请选择与账号一致的登录方式：QQ 扫码或微信扫码",
     "qqLoginMethodTitle": "选择登录方式",
     "qqLoginMethodHint": "请选择与 QQ 音乐账号一致的登录方式\nQQ 账号请选择 QQ 扫码，微信账号请选择微信扫码",

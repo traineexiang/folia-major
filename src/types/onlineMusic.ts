@@ -416,6 +416,12 @@ export type LoginSelfCheckResult = {
 export interface OnlineAuthProvider {
     getLoginStatus(): Promise<ProviderUser | null>;
     logout(): Promise<void>;
+    /**
+     * Sign-in by a pasted browser cookie, for a provider with no QR flow (YouTube Music: Google refuses
+     * sign-in inside an embedded window). Rejects with `auth-required` when the provider does not accept
+     * the cookie, and with details.stage 'cookie-format' when it lacks the values a sign-in needs.
+     */
+    loginWithCookie?(cookie: string): Promise<void>;
     getQrLoginMethods?(): QrLoginMethod[];
     // 需要远端能力发现的 provider 在这里等待结果；UI 用同一份返回值决定单步或多步流程。
     resolveQrLoginMethods?(): Promise<QrLoginMethod[]>;

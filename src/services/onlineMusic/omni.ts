@@ -223,6 +223,17 @@ export const omni = {
         await provider.auth.logout();
     },
 
+    /** 用粘贴的 cookie 登录（YouTube Music）；有它的 provider 不走扫码。 */
+    supportsCookieLogin(providerId: OmniProviderId): boolean {
+        return typeof getOnlineMusicProvider(providerId)?.auth?.loginWithCookie === 'function';
+    },
+
+    async loginWithCookie(providerId: OmniProviderId, cookie: string): Promise<void> {
+        const auth = requireOnlineMusicProvider(providerId).auth;
+        if (!auth?.loginWithCookie) return unsupported(providerId, 'cookie-login');
+        await auth.loginWithCookie(cookie);
+    },
+
     // 没有这个能力就回空数组，UI 据此走单步流程；netease / kugou 完全不受影响。
     getQrLoginMethods(providerId: OmniProviderId): QrLoginMethod[] {
         return requireOnlineMusicProvider(providerId).auth?.getQrLoginMethods?.() ?? [];

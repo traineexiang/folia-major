@@ -1308,6 +1308,26 @@ export default {
     "loginTitleQq": "Pindai untuk masuk ke QQ Music",
     "loginTitleBodian": "Pindai dengan Bodian Music",
     "loginNoteBodian": "Pindai kode ini dengan aplikasi Bodian Music dan konfirmasi masuk",
+    "cookieLoginUseGrid": "YouTube Music masuk dengan cookie yang ditempel. Ganti pustaka ke antarmuka Grid untuk masuk.",
+    "loginTitleYtMusic": "Masuk ke YouTube Music",
+    "loginNoteYtMusic": "Google tidak mengizinkan masuk langsung di Folia, jadi serahkan status masuk dari browser Anda sekali.",
+    "ytmusicCookieLogin": {
+      "steps": [
+        "Buka music.youtube.com di jendela pribadi (incognito) dan masuk.",
+        "Buka DevTools (⌥⌘I) → Network → Fetch/XHR, lalu klik Library di halaman.",
+        "Klik permintaan bernama “browse” → Headers → Request Headers → klik kanan nilai cookie → Copy value.",
+        "Tutup jendela pribadi, lalu tempel nilainya di bawah."
+      ],
+      "openSite": "Buka music.youtube.com",
+      "field": "Cookie",
+      "placeholder": "Tempel nilai cookie di sini",
+      "submit": "Masuk",
+      "submitting": "Memeriksa ke YouTube…",
+      "storage": "Disimpan terenkripsi hanya di komputer ini. Jangan tempel di tempat lain.",
+      "error_invalid": "Ini bukan cookie masuk yang lengkap (SAPISID atau __Secure-3PSID tidak ada). Salin ulang seluruh nilai cookie.",
+      "error_rejected": "YouTube tidak menerima cookie ini. Mungkin sudah kedaluwarsa - salin yang baru dari jendela pribadi baru.",
+      "error_failed": "Tidak dapat menjangkau YouTube Music. Periksa koneksi lalu coba lagi."
+    },
     "loginNoteQq": "Pilih metode masuk yang sesuai: pindai QQ atau pindai WeChat",
     "qqLoginMethodTitle": "Pilih metode masuk",
     "qqLoginMethodHint": "Gunakan pindai QQ untuk akun QQ, atau pindai WeChat untuk akun WeChat",

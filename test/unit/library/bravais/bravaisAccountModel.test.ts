@@ -37,6 +37,8 @@ const session = ({ backendHealth = HEALTHY, ...input }: SessionInput = {}): Libr
         id: 7,
         providerId,
         phase: 'waiting' as const,
+        kind: 'qr' as const,
+        cookieError: null,
         methods: [],
         selectedMethodId: null,
         qrImageUrl: 'data:image/png;base64,key-1',

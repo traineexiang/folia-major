@@ -217,6 +217,9 @@ describe('login copy', () => {
             confirmed: 'home.loginSuccess',
             expired: 'home.qrExpired',
             error: 'home.loginError',
+            // cookie 登录的状态由输入框自己表达（cookieError），没有状态行。
+            'cookie-input': null,
+            'cookie-submitting': null,
         };
         for (const [phase, key] of Object.entries(expected) as Array<[LibraryLoginPhase, string | null]>) {
             expect(resolveLoginStatusMessage(phase), phase).toEqual(key ? { key } : null);

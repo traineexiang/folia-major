@@ -7,6 +7,8 @@ import type {
     LibraryAccountSnapshot,
     LibraryBackendRestartResult,
     LibraryLoginCloseResult,
+    LibraryCookieLoginError,
+    LibraryCookieLoginResult,
     LibraryLoginCompletion,
     LibraryLoginDiagnosticResult,
     LibraryLoginPhase,
@@ -72,9 +74,14 @@ type LoginState = {
     providerId: OnlineProviderId;
     methods: readonly QrLoginMethod[];
     selectedMethodId: string | null;
-    stage: 'resolving-methods' | 'choosing-method' | 'session';
+    stage: 'resolving-methods' | 'choosing-method' | 'session' | 'cookie-input' | 'cookie-submitting';
     sessionId: number | null;
+    cookieError: LibraryCookieLoginError | null;
 };
+
+const isCookieStage = (stage: LoginState['stage']): stage is 'cookie-input' | 'cookie-submitting' => (
+    stage === 'cookie-input' || stage === 'cookie-submitting'
+);
 
 type PendingSwitch = {
     request: LibraryProviderSwitchRequest;
@@ -117,6 +124,8 @@ const sameLoginSnapshot = (a: LibraryLoginSessionSnapshot, b: LibraryLoginSessio
     a.id === b.id
     && a.providerId === b.providerId
     && a.phase === b.phase
+    && a.kind === b.kind
+    && a.cookieError === b.cookieError
     && a.methods === b.methods
     && a.selectedMethodId === b.selectedMethodId
     && a.qrImageUrl === b.qrImageUrl
@@ -184,6 +193,8 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
             id: login.id,
             providerId: login.providerId,
             phase,
+            kind: isCookieStage(login.stage) ? 'cookie' as const : 'qr' as const,
+            cookieError: login.cookieError,
             methods: login.methods,
             selectedMethodId: login.selectedMethodId,
             qrImageUrl,
@@ -347,6 +358,8 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
         const selection = resolveProviderSelection(findProvider(providerId));
         if (selection.kind === 'unavailable') return { status: 'unavailable', providerId, reason: selection.reason };
         const attempt = ++loginSeq;
+        // 粘贴 cookie 的 provider 没有扫码会话：直接停在输入框，不解析方式、不要码。
+        const cookieLogin = auth.supportsCookieLogin(providerId);
         batch(() => {
             // 单一在途登录：先停旧会话（keyed 取消），旧会话不会再在后台替旧平台确认（A0 记下的潜在 bug）。
             session.stop();
@@ -355,10 +368,12 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                 providerId,
                 methods: NO_METHODS,
                 selectedMethodId: null,
-                stage: 'resolving-methods',
+                stage: cookieLogin ? 'cookie-input' : 'resolving-methods',
                 sessionId: null,
+                cookieError: null,
             };
         });
+        if (cookieLogin) return { status: 'started', providerId, sessionId: attempt, step: 'cookie' };
         let methods: readonly QrLoginMethod[];
         try {
             methods = await auth.resolveQrLoginMethods(providerId);
@@ -397,6 +412,41 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
         if (!canRetryLogin(current)) return { status: 'rejected', reason: 'not-retryable' };
         // 保留已选的登录方式，否则用户会被踢回第一步。
         return { status: 'requested', sessionId: beginSession(++loginSeq, login, login.selectedMethodId) };
+    };
+
+    const classifyCookieError = (error: unknown): LibraryCookieLoginError => {
+        const { code, details } = (error ?? {}) as { code?: unknown; details?: { stage?: unknown } };
+        if (details?.stage === 'cookie-format') return 'invalid';
+        return code === 'auth-required' ? 'rejected' : 'failed';
+    };
+
+    const submitLoginCookie = async (cookie: string): Promise<LibraryCookieLoginResult> => {
+        if (disposed || !login) return { status: 'no-session' };
+        if (login.stage === 'cookie-submitting') return { status: 'rejected', reason: 'busy' };
+        if (login.stage !== 'cookie-input') return { status: 'rejected', reason: 'not-cookie-login' };
+        const { id: loginId, providerId } = login;
+        batch(() => { login = { ...login!, stage: 'cookie-submitting', cookieError: null }; });
+        const stillCurrent = () => !disposed && login?.id === loginId && login.stage === 'cookie-submitting';
+        try {
+            await auth.loginWithCookie(providerId, cookie);
+        } catch (error) {
+            // 错误原文可能带着上游的回应，但从不带 cookie；cookie 本身不进日志。
+            const reason = classifyCookieError(error);
+            log('warn', 'login:cookie-error', { providerId, reason, ...describeLoginError(error) });
+            if (stillCurrent()) batch(() => { login = { ...login!, stage: 'cookie-input', cookieError: reason }; });
+            return { status: 'failed', sessionId: loginId, error: reason };
+        }
+        let refreshed: boolean;
+        try {
+            refreshed = await providerAccounts.refresh(providerId) !== false;
+        } catch (error) {
+            log('warn', 'login:refresh-error', { providerId, ...describeLoginError(error) });
+            refreshed = false;
+        }
+        // 刷新期间登录被关掉或换掉：cookie 已经保存，只是不再收尾（与扫码确认一致）。收尾里的激活确认要等用户答复，
+        // 不等它（与扫码确认的 void finishConfirmedLogin 一致）；收起登录与刷新失败的处理在它的同步部分里已经完成。
+        if (stillCurrent()) void completeLogin(providerId, refreshed);
+        return { status: 'accepted', sessionId: loginId };
     };
 
     const closeLogin = (): LibraryLoginCloseResult => {
@@ -457,21 +507,33 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
 
     const finishConfirmedLogin = async (event: ProviderLoginConfirmedEvent, refreshed: boolean): Promise<void> => {
         if (!ownsSession(event.sessionId)) return;
+        await completeLogin(event.providerId, refreshed);
+    };
+
+    /**
+     * 登录被上游接受之后的共同收尾（扫码确认与 cookie 都走这里）：刷新失败保留登录快照；成功则收起登录，
+     * 不是当前平台时发起 activate-after-login 的待确认切换。调用前已确认登录仍是这一轮。
+     */
+    const completeLogin = async (providerId: OnlineProviderId, refreshed: boolean): Promise<void> => {
         const loginId = login!.id;
         const complete = (outcome: LibraryLoginCompletion['outcome']) => {
-            lastLoginCompletion = { sessionId: loginId, providerId: event.providerId, outcome };
+            lastLoginCompletion = { sessionId: loginId, providerId, outcome };
         };
         if (!refreshed) {
-            batch(() => complete('refresh-failed'));
+            batch(() => {
+                // cookie 登录没有会话把阶段改成 error，这里自己回到输入框并给出失败原因。
+                if (login && isCookieStage(login.stage)) login = { ...login, stage: 'cookie-input', cookieError: 'failed' };
+                complete('refresh-failed');
+            });
             return;
         }
-        const needsActivation = event.providerId !== activeProviderId();
+        const needsActivation = providerId !== activeProviderId();
         batch(() => {
             login = null;
             if (!needsActivation) complete('completed');
         });
         if (!needsActivation) return;
-        const result = await openSwitchRequest(event.providerId, 'activate-after-login');
+        const result = await openSwitchRequest(providerId, 'activate-after-login');
         if (disposed) return;
         batch(() => complete(result.status === 'switched' ? 'completed' : 'activation-declined'));
     };
@@ -531,6 +593,7 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
         startLogin,
         selectLoginMethod,
         retryLogin,
+        submitLoginCookie,
         closeLogin,
         restartLoginBackend,
         buildLoginDiagnosticReport,

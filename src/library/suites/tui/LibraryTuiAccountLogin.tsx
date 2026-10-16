@@ -121,7 +121,9 @@ const LibraryTuiAccountLogin: React.FC<LibraryTuiAccountLoginProps> = ({
 
             <div className="flex gap-4">
                 <div className="flex h-40 w-40 shrink-0 items-center justify-center border border-current/20 bg-white" data-tui-login-qr>
-                    {backendFailure ? (
+                    {view.cookieNotice ? (
+                        <span className="p-3 text-center text-[11px] text-zinc-600" data-tui-login-cookie>{view.cookieNotice}</span>
+                    ) : backendFailure ? (
                         <div className="flex h-full w-full flex-col justify-center gap-1 p-2 text-[11px] text-red-600" data-tui-login-backend>
                             <span className="font-bold">{backendFailure.title}</span>
                             {session.backend.detail ? <span className="break-words opacity-80">{session.backend.detail}</span> : null}

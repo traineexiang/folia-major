@@ -16,6 +16,7 @@ import {
     type LibraryLoginView,
 } from '../../../core/bindings/useLibraryAccount';
 import OnlineProviderLoginModal from './OnlineProviderLoginModal';
+import OnlineProviderCookieLoginModal from './OnlineProviderCookieLoginModal';
 import { buildQrLoginFailureHelpProps } from './buildQrLoginFailureHelpProps';
 import ConfirmDialog from '../../../../components/shared/ConfirmDialog';
 import qqIcon from '../../../../assets/providers/qq.svg';
@@ -37,10 +38,49 @@ const LOGIN_METHOD_ICONS: Record<string, string> = {
 
 type LoginModalProps = React.ComponentProps<typeof OnlineProviderLoginModal>;
 
-/** 登录弹窗只认扫码状态：还没开始要码的两步（解析方式、选方式）对它来说是 idle。 */
+/** 登录弹窗只认扫码状态：还没开始要码的两步（解析方式、选方式）对它来说是 idle。cookie 阶段不进这个弹窗。 */
 const toModalState = (phase: LibraryLoginPhase): LoginModalProps['state'] => (
-    phase === 'resolving-methods' || phase === 'choosing-method' ? 'idle' : phase
+    phase === 'resolving-methods' || phase === 'choosing-method' || phase === 'cookie-input' || phase === 'cookie-submitting'
+        ? 'idle'
+        : phase
 );
+
+// 粘贴 cookie 登录的站点与文案前缀；provider 只声明 loginWithCookie，链接与说明留在 UI 层。
+const COOKIE_LOGIN_SITES: Record<string, { url: string; copyKey: string }> = {
+    ytmusic: { url: 'https://music.youtube.com', copyKey: 'home.ytmusicCookieLogin' },
+};
+
+const openExternal = (url: string) => {
+    if (window.electron?.openExternalUrl) void window.electron.openExternalUrl(url);
+    else window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const buildCookieLoginModalProps = (
+    view: LibraryLoginView,
+    account: LibraryAccountController,
+    t: TFunction,
+): React.ComponentProps<typeof OnlineProviderCookieLoginModal> => {
+    const { session } = view;
+    const site = COOKIE_LOGIN_SITES[session.providerId] ?? { url: '', copyKey: 'home.ytmusicCookieLogin' };
+    const key = (name: string) => `${site.copyKey}.${name}`;
+    return {
+        title: view.title,
+        note: view.note,
+        steps: t(key('steps'), { returnObjects: true }) as string[],
+        openSiteLabel: t(key('openSite')),
+        onOpenSite: () => { if (site.url) openExternal(site.url); },
+        fieldLabel: t(key('field')),
+        placeholder: t(key('placeholder')),
+        submitLabel: t(key('submit')),
+        submittingLabel: t(key('submitting')),
+        storageNote: t(key('storage')),
+        error: session.cookieError ? t(key(`error_${session.cookieError}`)) : null,
+        submitting: session.phase === 'cookie-submitting',
+        closeLabel: view.closeLabel,
+        onSubmit: cookie => void account.submitLoginCookie(cookie),
+        onClose: () => void account.closeLogin(),
+    };
+};
 
 type GridLoginFeatures = {
     diagnostics: boolean;
@@ -123,7 +163,9 @@ const GridAccountSurface: React.FC<LibraryAccountSurfaceProps> = ({ account, isD
 
     const loginModal = (
         <AnimatePresence>
-            {login?.visible && <OnlineProviderLoginModal {...buildLoginModalProps(login, account, t, features)} />}
+            {login?.visible && (login.session.kind === 'cookie'
+                ? <OnlineProviderCookieLoginModal {...buildCookieLoginModalProps(login, account, t)} />
+                : <OnlineProviderLoginModal {...buildLoginModalProps(login, account, t, features)} />)}
         </AnimatePresence>
     );
     const canPortal = typeof document !== 'undefined';

@@ -48,7 +48,11 @@ async function getAccount(yt) {
         avatarUrl: item.account_photo?.[0]?.url ?? null,
       };
     }
-  } catch { /* account menu is optional; a signed-in session is what matters */ }
+  } catch (error) {
+    // A rejected session must surface as auth-required (the bridge maps 401/403); anything else only
+    // costs the account name, since a signed-in session is what matters.
+    if (/status code (401|403)/.test(String(error?.message ?? ''))) throw error;
+  }
   return { name: 'YouTube Music', handle: '', avatarUrl: null };
 }
 

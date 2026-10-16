@@ -189,6 +189,8 @@ beforeEach(() => {
             ops.push(['resolve-methods', providerId]);
             return providerId === 'quill' ? QUILL_METHODS : [];
         }),
+        supportsCookieLogin: vi.fn().mockReturnValue(false),
+        loginWithCookie: vi.fn(async (providerId: OnlineProviderId) => { ops.push(['cookie-login', providerId]); }),
         getProviderCapabilities: vi.fn().mockReturnValue({ auth: true }),
         createQrLogin: vi.fn(async (providerId: OnlineProviderId, methodId?: string) => {
             const key = `key-${++keySeq}`;
@@ -218,6 +220,94 @@ beforeEach(() => {
 const opsOf = (...names: string[]) => ops.filter(op => names.includes(op[0]));
 
 // ─── 切换 ───────────────────────────────────────────────────────────────
+
+describe('providerAccountController · cookie login', () => {
+    beforeEach(() => {
+        auth.supportsCookieLogin.mockImplementation((providerId: OnlineProviderId) => providerId === 'gamma');
+    });
+
+    it('opens on the paste field without resolving methods or requesting a QR code', async () => {
+        const controller = createController();
+
+        await expect(controller.startLogin('gamma')).resolves.toMatchObject({ status: 'started', step: 'cookie' });
+
+        expect(controller.getSnapshot().login).toMatchObject({ providerId: 'gamma', kind: 'cookie', phase: 'cookie-input', cookieError: null });
+        expect(isLoginDialogVisible(controller.getSnapshot().login)).toBe(true);
+        expect(opsOf('resolve-methods', 'create')).toEqual([]);
+    });
+
+    it('[txn] signs in, refreshes, then asks to activate like a confirmed QR login', async () => {
+        const controller = createController();
+        await controller.startLogin('gamma');
+
+        await expect(controller.submitLoginCookie('SAPISID=x; __Secure-3PSID=y')).resolves.toMatchObject({ status: 'accepted' });
+
+        expect(auth.loginWithCookie).toHaveBeenCalledExactlyOnceWith('gamma', 'SAPISID=x; __Secure-3PSID=y');
+        expect(opsOf('cookie-login', 'refresh')).toEqual([['cookie-login', 'gamma'], ['refresh', 'gamma']]);
+        expect(controller.getSnapshot().login).toBeNull();
+        expect(controller.getSnapshot().pendingSwitch).toMatchObject({ to: 'gamma', reason: 'activate-after-login' });
+    });
+
+    it.each([
+        ['invalid', Object.assign(new Error('format'), { code: 'invalid-response', details: { stage: 'cookie-format' } })],
+        ['rejected', Object.assign(new Error('rejected'), { code: 'auth-required' })],
+        ['failed', Object.assign(new Error('offline'), { code: 'network' })],
+    ])('returns to the paste field with the %s reason and never logs the cookie', async (reason, error) => {
+        auth.loginWithCookie.mockRejectedValueOnce(error);
+        const controller = createController();
+        await controller.startLogin('gamma');
+
+        await expect(controller.submitLoginCookie('SAPISID=secret-value')).resolves.toMatchObject({ status: 'failed', error: reason });
+
+        expect(controller.getSnapshot().login).toMatchObject({ phase: 'cookie-input', cookieError: reason });
+        expect(refresh).not.toHaveBeenCalled();
+        expect(JSON.stringify(log.mock.calls)).not.toContain('secret-value');
+    });
+
+    it('shows a refresh failure on the paste field and does not ask to activate', async () => {
+        refresh.mockResolvedValueOnce(false);
+        const controller = createController();
+        await controller.startLogin('gamma');
+
+        await controller.submitLoginCookie('SAPISID=x; __Secure-3PSID=y');
+
+        expect(controller.getSnapshot().login).toMatchObject({ phase: 'cookie-input', cookieError: 'failed' });
+        expect(controller.getSnapshot().pendingSwitch).toBeNull();
+        expect(controller.getSnapshot().lastLoginCompletion).toMatchObject({ providerId: 'gamma', outcome: 'refresh-failed' });
+    });
+
+    it('refuses a second submit while one is in flight, and a submit for a QR login', async () => {
+        const pending = deferred<void>();
+        auth.loginWithCookie.mockImplementationOnce(() => pending.promise);
+        const controller = createController();
+        await controller.startLogin('gamma');
+
+        const first = controller.submitLoginCookie('SAPISID=x; __Secure-3PSID=y');
+        expect(controller.getSnapshot().login?.phase).toBe('cookie-submitting');
+        await expect(controller.submitLoginCookie('again')).resolves.toEqual({ status: 'rejected', reason: 'busy' });
+        pending.resolve();
+        await first;
+
+        await controller.startLogin('alpha');
+        await expect(controller.submitLoginCookie('x')).resolves.toEqual({ status: 'rejected', reason: 'not-cookie-login' });
+    });
+
+    it('drops the outcome when the login is closed during the submit', async () => {
+        const pending = deferred<void>();
+        auth.loginWithCookie.mockImplementationOnce(() => pending.promise);
+        const controller = createController();
+        await controller.startLogin('gamma');
+
+        const submit = controller.submitLoginCookie('SAPISID=x; __Secure-3PSID=y');
+        controller.closeLogin();
+        pending.resolve();
+        await submit;
+
+        expect(controller.getSnapshot().login).toBeNull();
+        expect(controller.getSnapshot().pendingSwitch).toBeNull();
+        expect(refresh).toHaveBeenCalledExactlyOnceWith('gamma');
+    });
+});
 
 describe('providerAccountController · switch', () => {
     it('switches to the current provider at once without asking or cleaning up', async () => {

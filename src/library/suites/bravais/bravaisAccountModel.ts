@@ -143,7 +143,10 @@ export const projectBravaisFailureHelp = (view: LibraryLoginView, features: Brav
 export const projectBravaisLoginForm = (view: LibraryLoginView, features: BravaisLoginFeatures): BravaisLoginForm => {
     const { session, methodStep, backendFailure } = view;
     const awaitingMethod = isAwaitingLoginMethod(session);
-    const qr: BravaisLoginQr = backendFailure
+    // cookie 登录只有 grid 画了粘贴框：二维码位换成去 grid 登录的说明（复用不要码的占位）。
+    const qr: BravaisLoginQr = view.cookieNotice
+        ? { kind: 'choose-method', text: view.cookieNotice }
+        : backendFailure
         ? { kind: 'backend-failure', title: backendFailure.title, detail: session.backend.detail }
         : awaitingMethod && methodStep
             ? { kind: 'choose-method', text: methodStep.pending }

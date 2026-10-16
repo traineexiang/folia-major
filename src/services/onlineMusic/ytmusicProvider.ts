@@ -86,6 +86,18 @@ export const ytmusicProvider: OnlineMusicProvider = {
             return normalizeYtMusicUser(await requestYtMusic<YtMusicAccountDto>('account'));
         },
         async logout() { await requestYtMusic('logout'); },
+        async loginWithCookie(cookie) {
+            try {
+                await requestYtMusic('login_cookie', { cookie });
+            } catch (error) {
+                // The bridge refuses a cookie without SAPISID / __Secure-3PSID before asking YouTube.
+                if (error instanceof OnlineProviderError && error.details?.upstreamCode === 'invalid-params') {
+                    throw new OnlineProviderError('invalid-response', 'Cookie is missing the YouTube sign-in values', 'ytmusic',
+                        undefined, undefined, undefined, { stage: 'cookie-format', transient: false });
+                }
+                throw error;
+            }
+        },
     },
     library: {
         async getUserPlaylists(_userId, limit, offset) {

@@ -25,6 +25,8 @@ const session = (providerId: string, failure: QrLoginFailureKind | null): Librar
         id: 1,
         providerId,
         phase: failure ? 'error' as const : 'waiting' as const,
+        kind: 'qr' as const,
+        cookieError: null,
         methods: [],
         selectedMethodId: null,
         qrImageUrl: '',

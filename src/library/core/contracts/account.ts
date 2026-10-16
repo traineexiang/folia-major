@@ -29,7 +29,19 @@ export type LibraryLoginPhase =
     | 'resolving-methods'
     | 'choosing-method'
     | 'loading'
-    | QrLoginState['state'];
+    | QrLoginState['state']
+    /** 粘贴 cookie 登录（provider 声明 loginWithCookie，例如 YouTube Music）：等用户粘贴 / 提交中。 */
+    | 'cookie-input'
+    | 'cookie-submitting';
+
+/** 粘贴 cookie 登录：一种登录方式，不经过扫码会话。 */
+export type LibraryLoginKind = 'qr' | 'cookie';
+
+/**
+ * cookie 登录失败的原因：invalid = 缺少登录所需的值（没向上游发请求）；rejected = 上游不认这个 cookie；
+ * failed = 别的失败（网络、后端）。回到 cookie-input 时清空。
+ */
+export type LibraryCookieLoginError = 'invalid' | 'rejected' | 'failed';
 
 /**
  * 登录后端的健康（目前只有网易的本地后端会报，见 core/model/accountRules 的 resolveLoginBackendState）。
@@ -106,6 +118,9 @@ export type LibraryLoginSessionSnapshot = {
     id: number;
     providerId: OnlineProviderId;
     phase: LibraryLoginPhase;
+    kind: LibraryLoginKind;
+    /** 只在 kind=cookie 时可能非空。 */
+    cookieError: LibraryCookieLoginError | null;
     /** provider 声明的扫码登录方式；空数组 = 单步流程。 */
     methods: readonly QrLoginMethod[];
     /** 多方式时已选的那个；重试保留它（否则用户会被踢回第一步）。 */
@@ -199,7 +214,7 @@ export type LibrarySwitchCancelResult =
  * 之后的扫码进度（含要码失败 start-error）都在快照里。superseded：登录方式还没解析完就有更新的 startLogin。
  */
 export type LibraryStartLoginResult =
-    | { status: 'started'; providerId: OnlineProviderId; sessionId: number; step: 'choosing-method' | 'qr' }
+    | { status: 'started'; providerId: OnlineProviderId; sessionId: number; step: 'choosing-method' | 'qr' | 'cookie' }
     | { status: 'superseded'; providerId: OnlineProviderId }
     | { status: 'unavailable'; providerId: OnlineProviderId; reason: LibraryProviderUnavailableReason };
 
@@ -222,6 +237,13 @@ export type LibraryLoginRequestResult =
     | { status: 'requested'; sessionId: number }
     | { status: 'no-session' }
     | { status: 'rejected'; reason: LibraryLoginRejectReason };
+
+/** 提交粘贴的 cookie：accepted 之后与扫码确认走同一条收尾（刷新账户、必要时问要不要切过去）。 */
+export type LibraryCookieLoginResult =
+    | { status: 'accepted'; sessionId: number }
+    | { status: 'failed'; sessionId: number; error: LibraryCookieLoginError }
+    | { status: 'no-session' }
+    | { status: 'rejected'; reason: 'not-cookie-login' | 'busy' };
 
 export type LibraryLoginCloseResult =
     | { status: 'closed'; sessionId: number }
@@ -271,6 +293,8 @@ export interface LibraryAccountController {
     selectLoginMethod(methodId: string): Promise<LibraryLoginRequestResult>;
     /** 保留已选的登录方式重新要码。 */
     retryLogin(): Promise<LibraryLoginRequestResult>;
+    /** cookie 登录（kind=cookie 且在 cookie-input）时提交粘贴的 cookie；cookie 不进快照、不进日志。 */
+    submitLoginCookie(cookie: string): Promise<LibraryCookieLoginResult>;
     /** 停轮询、keyed 取消会话、清快照。 */
     closeLogin(): LibraryLoginCloseResult;
     /** 只在 backend.canRestart 时；恢复运行后自动要码。 */
@@ -291,6 +315,9 @@ export interface LibraryAccountController {
 export type LibraryAccountAuthPort = {
     /** 没有 auth 的 provider 回空数组。 */
     resolveQrLoginMethods(providerId: OnlineProviderId): Promise<QrLoginMethod[]>;
+    /** provider 用粘贴的 cookie 登录、没有扫码流程。 */
+    supportsCookieLogin(providerId: OnlineProviderId): boolean;
+    loginWithCookie(providerId: OnlineProviderId, cookie: string): Promise<void>;
     createQrLogin(providerId: OnlineProviderId, methodId?: string): Promise<{ key: string; imageUrl: string }>;
     checkQrLogin(providerId: OnlineProviderId, key: string): Promise<QrLoginState>;
     /** 只释放这一把 key，幂等；调用方 fire-and-forget。 */
