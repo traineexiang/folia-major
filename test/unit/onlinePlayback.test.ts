@@ -20,6 +20,8 @@ vi.mock('@/services/onlineMusic/omni', () => ({
     omni: {
         getAudioSource: sourceMock,
         getLyrics: lyricsMock,
+        // YouTube Music is the only provider without lyrics of its own.
+        canGetLyrics: (song: { sourceRef?: { kind: string; providerId?: string } }) => song.sourceRef?.providerId !== 'ytmusic',
     },
 }));
 
@@ -428,6 +430,27 @@ describe('online QQ lyric candidate plumbing', () => {
 
         finishAutoMatch();
         await pending;
+    });
+});
+
+describe('providers without lyrics of their own', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        songCacheMock.mockResolvedValue(null);
+        loadLyricsStateMock.mockResolvedValue(null);
+    });
+
+    it('skips the provider and takes lyrics from the best-lyric match', async () => {
+        const ytSong: SongResult = { ...song, id: 'm9SMT5ipbxk', sourceRef: { kind: 'online', providerId: 'ytmusic', mediaId: 'm9SMT5ipbxk' } };
+        const lyrics = { lines: [{ startTime: 0, endTime: 1, fullText: 'line', words: [] }], isWordByWord: false };
+        autoMatchMock.mockResolvedValue({ lyrics, source: 'netease', id: 1, song: { ...song, id: 1 } });
+        const onLyrics = vi.fn();
+
+        await loadOnlineSongLyrics(ytSong, null, null, { isCurrent: () => true, onLyrics, onDone: vi.fn() });
+
+        expect(lyricsMock).not.toHaveBeenCalled();
+        expect(autoMatchMock).toHaveBeenCalledWith('Song', '', 1000, expect.objectContaining({ providerCandidate: undefined, album: undefined }));
+        expect(onLyrics).toHaveBeenLastCalledWith(lyrics);
     });
 });
 

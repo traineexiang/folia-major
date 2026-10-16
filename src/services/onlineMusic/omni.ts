@@ -546,6 +546,12 @@ export const omni = {
         await provider.playbackReports.reportPlayback(song, report);
     },
 
+    /** False for a provider with no lyrics of its own (YouTube Music); callers then rely on best-lyric matching. */
+    canGetLyrics(song: SongResult): boolean {
+        const provider = getOnlineMusicProviderForSong(song);
+        return providerSupports(provider, 'lyrics') && Boolean(provider?.lyrics);
+    },
+
     async getLyrics(song: SongResult, context?: { userId?: MediaId | null }): Promise<OmniLyricsResult> {
         const provider = providerForSong(song);
         if (!provider.lyrics) return unsupported(provider.id, 'lyrics');

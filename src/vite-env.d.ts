@@ -899,9 +899,9 @@ declare global {
       ) => Promise<import('./services/onlineMusic/bodianTransport').BodianBridgeResult>;
       /** YouTube Music bridge (electron/ytmusicApiBridge.cjs); the cookie never crosses this channel. */
       ytmusicRequest?: (
-        operation: 'status' | 'login_cookie' | 'logout' | 'audio' | 'home',
+        operation: import('./services/onlineMusic/ytmusicTransport').YtMusicOperation,
         params?: Record<string, unknown>,
-      ) => Promise<{ ok: true; data: unknown } | { ok: false; error: { code: string; message: string } }>;
+      ) => Promise<import('./services/onlineMusic/ytmusicTransport').YtMusicBridgeResult>;
       kugouRequest: (
         operation: ElectronKugouOperation,
         params?: Record<string, string | number | boolean | undefined>,

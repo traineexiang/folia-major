@@ -14,6 +14,7 @@ import { getCachedSongAudioBlob, getCachedSongReplayGain, getSongCacheWithLegacy
 import { toPlayableAudioUrl } from '../utils/appPlaybackHelpers';
 import { getPlaybackSourceRef } from '../utils/appPlaybackGuards';
 import { getProviderSongMetadata } from './onlineMusic/songMetadata';
+import { resolveLyricSearchIdentity } from './lyricSearchIdentity';
 import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { useOnlineProviderAccountStore } from '../stores/useOnlineProviderAccountStore';
 import { saveLyricCacheSongMetadata } from './lyricExport/lyricCacheMetadata';
@@ -153,6 +154,10 @@ export async function loadOnlineSongLyrics(
     const { isCurrent, onLyrics, onPureMusicChange, onStateChange, onAutoMatchStart, onDone } = callbacks;
     const lyricCacheKey = getSongResourceCacheKey('lyric', song);
     const onlineLyricsState = await loadOnlineLyricsState(song);
+    // A provider without lyrics of its own (YouTube Music) gets them only from the cross-provider
+    // best-lyric search below, so that search runs for it whatever the auto-match setting says.
+    const ownProviderId = song.sourceRef?.kind === 'online' ? song.sourceRef.providerId : null;
+    const hasOwnLyrics = omni.canGetLyrics(song);
   const initialSettingsLyricSettings = useLyricSettingsStore.getState();
 
     if (!isCurrent()) return;
@@ -210,6 +215,8 @@ export async function loadOnlineSongLyrics(
             lyrics: prefetched.lyrics,
             chorusRanges: [],
           }
+        : !hasOwnLyrics
+        ? { mainLrc: null, yrcLrc: null, transLrc: null, isPureMusic: false, lyrics: null, chorusRanges: [] }
         : await (async () => {
             const result = await omni.getLyrics(song, { userId });
             return {
@@ -229,7 +236,7 @@ export async function loadOnlineSongLyrics(
     let finalState = onlineLyricsState;
 
   const settingsLyricSettings = useLyricSettingsStore.getState();
-    const shouldAutoMatch = settingsLyricSettings.autoUseBestLyric && !onlineLyricsState?.hasOnlineOverride;
+    const shouldAutoMatch = (settingsLyricSettings.autoUseBestLyric || !hasOwnLyrics) && !onlineLyricsState?.hasOnlineOverride;
 
     if (shouldAutoMatch) {
         // The lyrics in hand are already displayable, so hand them over and report done BEFORE the
@@ -244,10 +251,9 @@ export async function loadOnlineSongLyrics(
 
         try {
             onAutoMatchStart?.();
-            const metadata = getProviderSongMetadata(song);
-            const artistName = metadata.artists.map(a => a.name).join(', ');
-            const bestMatch = await autoMatchBestLyric(song.name, artistName, metadata.durationMs, {
-                album: metadata.album?.name,
+            const identity = await resolveLyricSearchIdentity(song);
+            const bestMatch = await autoMatchBestLyric(identity.title, identity.artist, identity.durationMs, {
+                album: identity.album,
                 preferredSource: settingsLyricSettings.preferredAlternativeLyricSource,
                 providerCandidate: song.sourceRef?.kind === 'online'
                     && (song.sourceRef.providerId === 'netease' || song.sourceRef.providerId === 'kugou' || song.sourceRef.providerId === 'qq')
@@ -265,7 +271,6 @@ export async function loadOnlineSongLyrics(
                     }
                     : undefined
             });
-            const ownProviderId = song.sourceRef?.kind === 'online' ? song.sourceRef.providerId : null;
             if (bestMatch && 'lyrics' in bestMatch && bestMatch.source !== ownProviderId) {
                 const overrideState: OnlineLyricsState = {
                     lyricsSource: 'online',

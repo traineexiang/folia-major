@@ -74,7 +74,7 @@ import { useAppNavigation } from './hooks/useAppNavigation';
 import { useNeteaseLibrary } from './hooks/useNeteaseLibrary';
 import { useKugouLibrary } from './hooks/useKugouLibrary';
 import { useQqLibrary } from './hooks/useQqLibrary';
-import { useBodianLibrary } from './hooks/useBodianLibrary';
+import { useProviderAccountLibrary } from './hooks/useProviderAccountLibrary';
 import { useLibraryAccountController } from './library/app/useLibraryAccountController';
 import { createLibraryAccountSwitchCleanupPort } from './library/app/createLibraryAccountPort';
 import { useAppWallToolsHost } from './components/app/wall-tools/useAppWallToolsHost';
@@ -742,19 +742,22 @@ export default function App() {
         refresh: refreshQqLibrary,
         logout: logoutQqLibrary,
     } = useQqLibrary();
-    const { refresh: refreshBodianLibrary, logout: logoutBodianLibrary } = useBodianLibrary();
+    const { refresh: refreshBodianLibrary, logout: logoutBodianLibrary } = useProviderAccountLibrary('bodian');
+    const { refresh: refreshYtMusicLibrary, logout: logoutYtMusicLibrary } = useProviderAccountLibrary('ytmusic');
     const onlineProviderRefreshers = useMemo<Partial<Record<OnlineProviderId, () => Promise<unknown>>>>(() => ({
         netease: refreshUserData,
         kugou: refreshKugouLibrary,
         qq: refreshQqLibrary,
         bodian: refreshBodianLibrary,
-    }), [refreshKugouLibrary, refreshQqLibrary, refreshBodianLibrary, refreshUserData]);
+        ytmusic: refreshYtMusicLibrary,
+    }), [refreshKugouLibrary, refreshQqLibrary, refreshBodianLibrary, refreshYtMusicLibrary, refreshUserData]);
     const onlineProviderLogouts = useMemo<Partial<Record<OnlineProviderId, () => Promise<void>>>>(() => ({
         netease: handleLogout,
         kugou: logoutKugouLibrary,
         qq: logoutQqLibrary,
         bodian: logoutBodianLibrary,
-    }), [handleLogout, logoutKugouLibrary, logoutQqLibrary, logoutBodianLibrary]);
+        ytmusic: logoutYtMusicLibrary,
+    }), [handleLogout, logoutKugouLibrary, logoutQqLibrary, logoutBodianLibrary, logoutYtMusicLibrary]);
 
     // 在线账户 controller（Library v2 · A4）：扫码登录、选平台、切换确认与登出都在 core，App 只交出 per-provider 的
     // 刷新与登出，以及确认切换后的播放清理端口。端口读的三样（audio / automix 句柄、歌词写入）都是稳定引用，建一次。

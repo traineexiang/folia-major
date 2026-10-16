@@ -13,11 +13,13 @@ UI / hooks / stores / app services
                  -> kugouTransport.ts（酷狗请求/IPC 边界）
             -> qqProvider.ts
                  -> qqTransport.ts（QQ 音乐请求边界）
+            -> ytmusicProvider.ts（桌面端）
+                 -> ytmusicTransport.ts（YouTube Music IPC 边界）
        -> providerAccountCache.ts / providerStorage.ts
   -> src/types/onlineMusic.ts（共享合同）
 ```
 
-当前 registry 注册 `netease`、`kugou`、`qq` 和桌面端的 `bodian`。波点接入状态、接口与剩余验收见
+当前 registry 注册 `netease`、`kugou`、`qq` 和桌面端的 `bodian`、`ytmusic`。波点接入状态、接口与剩余验收见
 [`docs/bodian.md`](../../../docs/bodian.md)；支持喜欢与自建歌单歌曲增删，收藏写入尚未实现。Navidrome 是独立的 Subsonic 服务，入口是 `src/services/navidromeService.ts`，不属于 Omni provider。
 
 扫码登录的分工：provider（`neteaseProvider.ts`、`qqProvider.ts`）把后端的响应翻译成 `QrLoginState`，失败时带上后端原文（`message`）、原始返回字段（`detail`，QQ 的失败阶段与原因、上游状态码、退避时长、上一次失败都原样保留）、结构化原因（`reason`：手机上取消、连接被重置、登录设备超限）、冷却（`retryAfterMs`）以及「网络层瞬时失败」（`transient`，没拿到上游回应、二维码仍有效）；要码与生成二维码拿不到 key / 图片时直接抛错，不再交出空值。provider 不持有任何扫码的模块级状态：一轮扫码的步骤、代次、时间线都在 Library Core 的 `core/services/providerLoginSession.ts`。会话在登录失败后自动调用 `omni.runQrLoginSelfCheck` 跑一次主动自检（在手机上取消除外），结论由 `core/model/loginSelfCheckRules.ts` 推出、显示在登录界面上，并和时间线、`omni.getQrLoginDiagnostics` 的 provider 段一起进诊断报告。
@@ -56,6 +58,7 @@ provider 段的内容来自主进程的内嵌后端快照（`loginBackendDiagnos
 - `neteaseProvider.ts`：网易云 adapter，归一化到 Omni contract；`/song/url`、替代版本查询和静态可用性的原始码到 `OmniError` 的映射在 `neteasePlaybackFailure.ts`（纯函数，不依赖 `../netease` 运行时）。
 - `kugouProvider.ts`：酷狗 adapter；请求细节在 `kugouTransport.ts`，具体接口需结合 `docs/ku-go-api-docs.md` 和 `skills/kugou-provider-alignment`。
 - `qqProvider.ts`：QQ 音乐 adapter；请求与 opaque session 细节在 `qqTransport.ts`，归一化在 `qqNormalize.ts`，推荐（日推、猜你喜欢、推荐歌单）在 `qqRecommendations.ts`，写入（自建歌单加歌删歌、收藏歌单、收藏状态、红心、收藏专辑）在 `qqMutations.ts`，单曲详情在 `qqSongDetail.ts`。这些路由是 qq-music-api 3.2.0（猜你喜欢、推荐歌单）、3.3.0（日推、歌单写入）与 3.3.1（红心、收藏专辑）新增的：写入走 POST + JSON 正文，只送一次、不重试；只有本人的普通目录（1–199，非「我喜欢」、无系统标记）可以加歌删歌，「我喜欢」走红心。QQ 有日推但没有「不喜欢」，所以每日推荐不给「管理推荐」（`omni.canDislikeCollectionSongs`）。集合身份一律用 mid，数字 `albumid` / `singer.id` 会被上游拒收（返回 HTTP 200 但 `code` 非 0，只表现成空白页）。后端由 `VITE_QQ_API_BASE` 指向的私有 QQ API 提供，未配置时该 provider 不可用；填相对路径（`/api/qq`）时走的是本仓库内置的 serverless 入口（`worker/qq.ts` / `api-ts/qq.ts`）。扫码通道由后端 `/login/channels` 声明；打开登录时 UI 会等待能力发现并使用同一份结果决定流程，只宣告一个通道时直接进入单步流程。旧后端没有这条路由时回落到硬编码的 `qq` / `wechat` 两条，暂时性探测失败允许后续重试。
+- `ytmusicProvider.ts`：YouTube Music adapter，仅桌面端、非官方（主进程里的 youtubei.js，见 `electron/ytmusicApiBridge.cjs`）。登录方式是粘贴 cookie：Google 拒绝在内嵌 Electron 窗口里登录。cookie 经 `safeStorage` 加密留在主进程，渲染进程只拿到桥的 DTO（`ytmusicNormalize.ts` 归一化）和 `ytmusic-audio://` 地址；该协议在主进程按 1 MB 有界分块读 googlevideo（开放 Range 会被 403）。没有自己的歌词（`omni.canGetLyrics` 为 false），歌词完全靠跨 provider 的最佳歌词匹配，搜索词由 `src/services/lyricSearchIdentity.ts` 换成中文曲库的叫法（去掉标题后的拉丁译名、经网易云搜索把英文艺人名换成中文名并记住、不带专辑）。私人 FM 是以「Listen again」里的歌为种子的 YouTube Music 电台。youtubei.js 解析失败归为 `unavailable` + `upstreamCode: 'update-needed'`，与 `auth-required` 分开。
 - `providerAccountCache.ts`：按 provider 保存用户、集合、点赞 ID、hydration/freshness 快照；刷新失败保留旧快照。
 - `providerStorage.ts`：renderer 的 provider session/account 持久化边界。QQ 这里只保存 opaque `qqmusic_session`；真实 credential 始终由 QQ API 后端持有。Electron 通过主进程的 `safeStorage` 加密仓库跨重启恢复，独立 Node / Docker 后端可用 `QQ_AUTH_SESSION_PATH` 与 `QQ_SESSION_SECRET` 启用加密文件仓库；serverless 形态下 credential 加密在 token 里，服务端不存。送出方式按部署形态分岔：同源 base 用 `X-QQ-Session` header 送裸 token，外部 URL 与 Electron 维持 `?cookie=` 送整串 cookie，两者语义不同不可互换。酷狗 Web transport 仍在这里保存远端 API 请求所需的 session；Electron transport 只保留非敏感 `userid` 提示，`token`、cookie 与 `dfid` 由主进程加密持有，不得复制到 renderer。
 - `resourceCache.ts` / `resourceKeys.ts`：在线资源缓存键和缓存层。当前 kind：`audio`、`lyric`、`cover`、`theme`、`replayGain`。**新增 kind 必须同时在 `src/services/repositories/cacheRepository.ts` 的 `getCacheTableName` 与 `matchesCategory` 里登记前缀**，否则条目会静默落进 `api_cache` 兜底表、不属于任何一个「清除缓存」分类，变成清不掉的孤儿；若该 kind 是按歌曲存一份，还要确认它没有被计进 `mediaCount`（那个数字的语义是「已缓存歌曲数」，会翻倍）。

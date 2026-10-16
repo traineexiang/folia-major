@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useBodianLibrary } from '@/hooks/useBodianLibrary';
+import { useProviderAccountLibrary } from '@/hooks/useProviderAccountLibrary';
 import { useOnlineProviderAccountStore } from '@/stores/useOnlineProviderAccountStore';
 
 // test/unit/hooks/useBodianLibrary.test.ts
@@ -43,7 +43,7 @@ describe('Bodian account identity restoration', () => {
     });
 
     it('clears the visible account synchronously on mount without loading a historical snapshot', async () => {
-        useBodianLibrary();
+        useProviderAccountLibrary('bodian');
         mocks.effects[0]();
         expect(useOnlineProviderAccountStore.getState().accounts.bodian).toMatchObject({
             status: 'anonymous', user: null, collections: [], likedSongIds: [],
@@ -56,7 +56,7 @@ describe('Bodian account identity restoration', () => {
     it.each([true, false])('does not authenticate when disabled (configured=%s), even if cache deletion fails', async configured => {
         mocks.getProviderAvailability.mockReturnValue({ configured });
         mocks.clearProviderAccountSnapshot.mockRejectedValue(new Error('storage unavailable'));
-        const { refresh } = useBodianLibrary();
+        const { refresh } = useProviderAccountLibrary('bodian');
         await expect(refresh()).resolves.toBe(false);
         expect(useOnlineProviderAccountStore.getState().accounts.bodian).toMatchObject({
             user: null, collections: [], likedSongIds: [], freshness: 'error',
@@ -70,7 +70,7 @@ describe('Bodian account identity restoration', () => {
         mocks.getProviderCapabilities.mockReturnValue({ auth: true });
         let rejectStatus!: (error: Error) => void;
         mocks.getLoginStatus.mockReturnValue(new Promise((_resolve, reject) => { rejectStatus = reject; }));
-        useBodianLibrary();
+        useProviderAccountLibrary('bodian');
         mocks.effects[0]();
         expect(useOnlineProviderAccountStore.getState().accounts.bodian.user).toBeNull();
         expect(mocks.loadProviderAccountSnapshot).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe('Bodian account identity restoration', () => {
             collections: [{ providerId: 'bodian', type: 'playlist', id: 'cached', name: 'Cached' }], likedSongIds: ['1'] });
         let rejectPage!: (error: Error) => void;
         mocks.getProviderUserPlaylists.mockReturnValue(new Promise((_resolve, reject) => { rejectPage = reject; }));
-        const { refresh } = useBodianLibrary();
+        const { refresh } = useProviderAccountLibrary('bodian');
         const pending = refresh();
         await vi.waitFor(() => expect(mocks.getProviderUserPlaylists).toHaveBeenCalled());
         expect(useOnlineProviderAccountStore.getState().accounts.bodian).toMatchObject({
@@ -105,7 +105,7 @@ describe('Bodian account identity restoration', () => {
     it('does not restore another account snapshot', async () => {
         mocks.getProviderCapabilities.mockReturnValue({ auth: true });
         mocks.getLoginStatus.mockResolvedValue({ id: '123', nickname: 'Current account' });
-        const { refresh } = useBodianLibrary();
+        const { refresh } = useProviderAccountLibrary('bodian');
         await expect(refresh()).resolves.toBe(true);
         expect(useOnlineProviderAccountStore.getState().accounts.bodian).toMatchObject({
             user: { id: '123' }, collections: [], likedSongIds: [], freshness: 'fresh',
@@ -118,7 +118,7 @@ describe('Bodian account identity restoration', () => {
         mocks.getLoginStatus.mockResolvedValue({ id: '123', nickname: 'Current account' });
         let finish!: (value: unknown) => void;
         mocks.loadProviderAccountSnapshot.mockReturnValue(new Promise(resolve => { finish = resolve; }));
-        const { refresh, logout } = useBodianLibrary();
+        const { refresh, logout } = useProviderAccountLibrary('bodian');
         const pending = refresh();
         await vi.waitFor(() => expect(mocks.loadProviderAccountSnapshot).toHaveBeenCalled());
         await logout();

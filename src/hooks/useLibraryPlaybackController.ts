@@ -26,6 +26,7 @@ import { hydrateNavidromeLyricPayload, resolvePreferredNavidromeLyrics } from '.
 import { migrateLyricDataRenderHints } from '../utils/lyrics/renderHints';
 import { migrateMatchedLyricsCarrierRenderHints } from '../utils/lyrics/storageMigration';
 import { autoMatchBestLyric } from '../utils/lyrics/autoMatchBestLyric';
+import { resolveLyricSearchIdentity } from '../services/lyricSearchIdentity';
 import { resolveExplicitFileTimedLyricFormat } from '../utils/lyrics/formatDetection';
 import { applyUploadedLocalLyrics } from '../utils/lyrics/localLyricsUpload';
 import { omni } from '../services/onlineMusic/omni';
@@ -1375,11 +1376,15 @@ export function useLibraryPlaybackController({
             const artistName = currentSongMetadata.artists.map(artist => artist.name).filter(Boolean).join(', ');
             const albumName = currentSongMetadata.album?.name || '';
             const sourceRef = getPlaybackSourceRef(currentSong);
-            const ownLyricsResult = await omni.getLyrics(currentSong);
-            const bestMatch = await autoMatchBestLyric(currentSong.name, artistName, currentSongMetadata.durationMs, {
-                album: albumName,
+            // A provider without lyrics of its own (YouTube Music) is searched under the names the
+            // Chinese catalogs use (services/lyricSearchIdentity.ts).
+            const hasOwnLyrics = omni.canGetLyrics(currentSong);
+            const ownLyricsResult = hasOwnLyrics ? await omni.getLyrics(currentSong) : null;
+            const identity = hasOwnLyrics ? null : await resolveLyricSearchIdentity(currentSong);
+            const bestMatch = await autoMatchBestLyric(identity?.title ?? currentSong.name, identity?.artist ?? artistName, currentSongMetadata.durationMs, {
+                album: hasOwnLyrics ? albumName : undefined,
                 preferredSource: settingsLyricSettings.preferredAlternativeLyricSource,
-                providerCandidate: sourceRef.kind === 'online'
+                providerCandidate: sourceRef.kind === 'online' && ownLyricsResult
                     && (sourceRef.providerId === 'netease' || sourceRef.providerId === 'kugou')
                     ? { providerId: sourceRef.providerId as 'netease' | 'kugou', song: currentSong, lyricsResult: ownLyricsResult }
                     : undefined,

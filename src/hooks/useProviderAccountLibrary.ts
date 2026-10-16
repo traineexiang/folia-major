@@ -3,94 +3,96 @@ import { omni } from '../services/onlineMusic/omni';
 import { clearProviderAccountSnapshot, loadProviderAccountSnapshot, saveProviderAccountSnapshot } from '../services/onlineMusic/providerAccountCache';
 import { useOnlineProviderAccountStore } from '../stores/useOnlineProviderAccountStore';
 import { OnlineProviderError } from '../types/onlineMusic';
-import type { MediaId, ProviderCollection } from '../types/onlineMusic';
+import type { MediaId, OnlineProviderId, ProviderCollection } from '../types/onlineMusic';
 
-// src/hooks/useBodianLibrary.ts
+// src/hooks/useProviderAccountLibrary.ts
+// Account + library refresh for providers whose session lives in the desktop main process (Bodian,
+// YouTube Music): the cached snapshot is shown only after the main process confirms the session.
 
-export const useBodianLibrary = () => {
+export const useProviderAccountLibrary = (providerId: OnlineProviderId) => {
     const generation = useRef(0);
     const pendingSave = useRef<Promise<unknown>>(Promise.resolve());
     const refresh = useCallback(async () => {
         const current = ++generation.current;
         const store = useOnlineProviderAccountStore.getState();
         try {
-            if (!omni.getProviderAvailability('bodian').configured || !omni.getProviderCapabilities('bodian').auth) {
-                store.clearAccount('bodian');
+            if (!omni.getProviderAvailability(providerId).configured || !omni.getProviderCapabilities(providerId).auth) {
+                store.clearAccount(providerId);
                 await pendingSave.current.catch(() => {});
-                await clearProviderAccountSnapshot('bodian');
+                await clearProviderAccountSnapshot(providerId);
                 return false;
             }
-            store.updateAccount('bodian', { freshness: 'refreshing', error: undefined });
-            const user = await omni.getLoginStatus('bodian');
+            store.updateAccount(providerId, { freshness: 'refreshing', error: undefined });
+            const user = await omni.getLoginStatus(providerId);
             if (generation.current !== current) return false;
             if (!user) {
-                store.clearAccount('bodian');
+                store.clearAccount(providerId);
                 await pendingSave.current.catch(() => {});
-                await clearProviderAccountSnapshot('bodian');
+                await clearProviderAccountSnapshot(providerId);
                 return false;
             }
             // Restore public metadata only after the main-process session identifies the same account.
-            const visibleUser = useOnlineProviderAccountStore.getState().accounts.bodian?.user;
+            const visibleUser = useOnlineProviderAccountStore.getState().accounts[providerId]?.user;
             if (!visibleUser || String(visibleUser.id) !== String(user.id)) {
-                store.clearAccount('bodian');
-                const snapshot = await loadProviderAccountSnapshot('bodian').catch(() => null);
+                store.clearAccount(providerId);
+                const snapshot = await loadProviderAccountSnapshot(providerId).catch(() => null);
                 if (generation.current !== current) return false;
                 const matching = snapshot && String(snapshot.user.id) === String(user.id) ? snapshot : null;
-                store.updateAccount('bodian', { status: 'authenticated', user,
+                store.updateAccount(providerId, { status: 'authenticated', user,
                     collections: matching?.collections || [], likedSongIds: matching?.likedSongIds || [],
                     hydration: 'ready', freshness: 'refreshing', lastUpdatedAt: matching?.savedAt, error: undefined });
             }
-            const likesBeforeRefresh = useOnlineProviderAccountStore.getState().accounts.bodian.likedSongIds;
+            const likesBeforeRefresh = useOnlineProviderAccountStore.getState().accounts[providerId].likedSongIds;
             const collections: ProviderCollection[] = [];
-            const capabilities = omni.getProviderCapabilities('bodian');
+            const capabilities = omni.getProviderCapabilities(providerId);
             let offset = 0;
             if (capabilities.userLibrary) {
                 while (true) {
-                    const page = await omni.getProviderUserPlaylists('bodian', user.id, { offset, limit: 50 });
+                    const page = await omni.getProviderUserPlaylists(providerId, user.id, { offset, limit: 50 });
                     if (generation.current !== current) return false;
                     collections.push(...page.items);
                     if (!page.hasMore || page.nextOffset <= offset) break;
                     offset = page.nextOffset;
                 }
             }
-            const fetchedLikedSongIds: MediaId[] = capabilities.likes ? await omni.getProviderLikedSongIds('bodian', user.id) : [];
+            const fetchedLikedSongIds: MediaId[] = capabilities.likes ? await omni.getProviderLikedSongIds(providerId, user.id) : [];
             if (generation.current !== current) return false;
             const save = pendingSave.current.catch(() => {}).then(() => {
                 if (generation.current !== current) return null;
                 // Omni replaces this array after each like mutation; keep those newer changes.
-                const latestLikes = useOnlineProviderAccountStore.getState().accounts.bodian.likedSongIds;
+                const latestLikes = useOnlineProviderAccountStore.getState().accounts[providerId].likedSongIds;
                 const likedSongIds = latestLikes === likesBeforeRefresh ? fetchedLikedSongIds : latestLikes;
                 // Commit before saving so a mutation during persistence cannot be overwritten afterward.
-                store.updateAccount('bodian', { status: 'authenticated', user, collections, likedSongIds,
+                store.updateAccount(providerId, { status: 'authenticated', user, collections, likedSongIds,
                     hydration: 'ready', error: undefined });
-                return saveProviderAccountSnapshot('bodian', { user, collections, likedSongIds });
+                return saveProviderAccountSnapshot(providerId, { user, collections, likedSongIds });
             });
             pendingSave.current = save;
             const saved = await save;
             if (generation.current !== current) return false;
             if (!saved) return false;
-            store.updateAccount('bodian', { freshness: 'fresh', lastUpdatedAt: saved.savedAt });
+            store.updateAccount(providerId, { freshness: 'fresh', lastUpdatedAt: saved.savedAt });
             return true;
         } catch (error) {
             if (generation.current !== current) return false;
             if (error instanceof OnlineProviderError && error.code === 'auth-required') {
-                store.clearAccount('bodian', 'auth-required');
+                store.clearAccount(providerId, 'auth-required');
                 await pendingSave.current.catch(() => {});
-                await clearProviderAccountSnapshot('bodian');
-            } else store.updateAccount('bodian', { hydration: 'ready', freshness: 'error',
-                status: useOnlineProviderAccountStore.getState().accounts.bodian?.user ? 'authenticated' : 'error', error: 'bodian-refresh-failed' });
+                await clearProviderAccountSnapshot(providerId);
+            } else store.updateAccount(providerId, { hydration: 'ready', freshness: 'error',
+                status: useOnlineProviderAccountStore.getState().accounts[providerId]?.user ? 'authenticated' : 'error', error: `${providerId}-refresh-failed` });
             return false;
         }
-    }, []);
+    }, [providerId]);
     const logout = useCallback(async () => {
         generation.current++;
-        useOnlineProviderAccountStore.getState().clearAccount('bodian');
+        useOnlineProviderAccountStore.getState().clearAccount(providerId);
         await pendingSave.current.catch(() => {});
-        await Promise.all([omni.logout('bodian'), clearProviderAccountSnapshot('bodian')]);
-    }, []);
+        await Promise.all([omni.logout(providerId), clearProviderAccountSnapshot(providerId)]);
+    }, [providerId]);
     useEffect(() => {
         // Check the desktop session before displaying cached account metadata.
-        useOnlineProviderAccountStore.getState().clearAccount('bodian');
+        useOnlineProviderAccountStore.getState().clearAccount(providerId);
         void refresh();
         return () => { generation.current++; };
     }, [refresh]);

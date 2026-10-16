@@ -17,6 +17,7 @@ import { getSongResourceCacheKey } from './onlineMusic/resourceKeys';
 import { getSongCacheWithLegacyMigration, hasCachedSongAudio } from './onlineMusic/resourceCache';
 import { toPlayableAudioUrl, toSafePlaybackUrl } from '../utils/appPlaybackHelpers';
 import { getProviderSongMetadata } from './onlineMusic/songMetadata';
+import { resolveLyricSearchIdentity } from './lyricSearchIdentity';
 import { ensureTrackProfile, setAnalysisScope } from './automix/profileService';
 import { modeNeedsBeatGrid } from './automix/transitionStrategy';
 import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
@@ -291,7 +292,11 @@ const prefetchSong = async (
                     ? currentSettingsLyricSettings.preferredAlternativeLyricSource
                     : null;
             } else if (!signal.aborted) {
-                const lyricResult = await omni.getLyrics(song, { userId });
+                // Without lyrics of its own (YouTube Music) the provider relies on the best-lyric match below.
+                const hasOwnLyrics = omni.canGetLyrics(song);
+                const lyricResult = hasOwnLyrics
+                    ? await omni.getLyrics(song, { userId })
+                    : { mainText: null, wordByWordText: null, translationText: null, isPureMusic: false, lyrics: null, chorusRanges: [] };
                 const processed = {
                     mainLrc: lyricResult.mainText ?? null,
                     yrcLrc: lyricResult.wordByWordText ?? null,
@@ -318,14 +323,13 @@ const prefetchSong = async (
   const settingsLyricSettings = useLyricSettingsStore.getState();
                 const autoUseBest = settingsLyricSettings.autoUseBestLyric;
                 const preferredSource = settingsLyricSettings.preferredAlternativeLyricSource;
-                const shouldAutoMatch = autoUseBest && !onlineLyricsState?.hasOnlineOverride;
+                const shouldAutoMatch = (autoUseBest || !hasOwnLyrics) && !onlineLyricsState?.hasOnlineOverride;
 
                 if (shouldAutoMatch) {
                     try {
-                        const metadata = getProviderSongMetadata(song);
-                        const artistName = metadata.artists.map(a => a.name).join(', ');
-                        const bestMatch = await autoMatchBestLyric(song.name, artistName, metadata.durationMs, {
-                            album: metadata.album?.name,
+                        const identity = await resolveLyricSearchIdentity(song);
+                        const bestMatch = await autoMatchBestLyric(identity.title, identity.artist, identity.durationMs, {
+                            album: identity.album,
                             preferredSource: settingsLyricSettings.preferredAlternativeLyricSource,
                             ...(sourceRef.providerId === 'netease' || sourceRef.providerId === 'kugou' || sourceRef.providerId === 'qq'
                                 ? { providerCandidate: {

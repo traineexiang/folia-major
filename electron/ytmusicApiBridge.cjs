@@ -1,5 +1,5 @@
 const { createYtMusicSessionRepository, isUsableCookie } = require('./ytmusic/session.cjs');
-const { toShelves } = require('./ytmusic/normalize.cjs');
+const library = require('./ytmusic/library.cjs');
 const { toYtMusicAudioUrl } = require('./ytmusic/audioProtocol.cjs');
 
 // electron/ytmusicApiBridge.cjs
@@ -10,8 +10,12 @@ const { toYtMusicAudioUrl } = require('./ytmusic/audioProtocol.cjs');
 
 // Sign-in is a pasted cookie header: Google refuses sign-in inside an embedded Electron window
 // ("This browser or app may not be secure"), even with Chrome's user agent and client hints.
-const OPERATIONS = ['status', 'login_cookie', 'logout', 'audio', 'home'];
+const OPERATIONS = ['status', 'login_cookie', 'logout', 'account', 'audio', 'home', 'search', 'playlist',
+  'album', 'library_playlists', 'liked_ids', 'up_next', 'like', 'report_play'];
 const VIDEO_ID = /^[\w-]{11}$/;
+// Playlist ids (PL…, VL…, RD…, LM, OLAK…) and album browse ids (MPRE…); never a URL or path.
+const BROWSE_ID = /^[\w-]{2,64}$/;
+const MAX_PAGE = 200;
 // web_music plays full tracks with a signed-in cookie (no PO token observed); android_vr is the
 // anonymous fallback, which YouTube cuts off after roughly a minute without a PO token.
 const STREAM_CLIENTS = ['YTMUSIC', 'ANDROID_VR'];
@@ -22,6 +26,24 @@ const evaluatePlayerScript = (data, env) => {
   if (env.n) exports.push(`n: exportedVars.nFunction(${JSON.stringify(env.n)})`);
   if (env.sig) exports.push(`sig: exportedVars.sigFunction(${JSON.stringify(env.sig)})`);
   return new Function(`${data.output}\nreturn { ${exports.join(', ')} }`)();
+};
+
+const invalid = message => Object.assign(new Error(message), { code: 'invalid-params' });
+const videoIdOf = params => {
+  const id = String(params?.videoId ?? '');
+  if (!VIDEO_ID.test(id)) throw invalid('Invalid video id');
+  return id;
+};
+const browseIdOf = params => {
+  const id = String(params?.id ?? '');
+  if (!BROWSE_ID.test(id)) throw invalid('Invalid browse id');
+  return id;
+};
+const pageOf = params => {
+  const limit = Number(params?.limit ?? 50);
+  const offset = Number(params?.offset ?? 0);
+  if (!Number.isSafeInteger(limit) || !Number.isSafeInteger(offset) || limit < 1 || offset < 0) throw invalid('Invalid page');
+  return { limit: Math.min(limit, MAX_PAGE), offset };
 };
 
 const failure = (code, message) => ({ ok: false, error: { code, message } });
@@ -138,15 +160,24 @@ function createYtMusicApiBridge({ store, safeStorage,
       return { signedIn: false };
     },
     async audio(params) {
-      if (!VIDEO_ID.test(String(params?.videoId ?? ''))) throw Object.assign(new Error('Invalid video id'), { code: 'invalid-params' });
-      const { url: _upstream, ...stream } = await resolveStream(params.videoId, { refresh: Boolean(params.refresh) });
-      return { ...stream, url: toYtMusicAudioUrl(params.videoId) };
+      const videoId = videoIdOf(params);
+      const { url: _upstream, ...stream } = await resolveStream(videoId, { refresh: Boolean(params.refresh) });
+      return { ...stream, url: toYtMusicAudioUrl(videoId) };
     },
-    async home() {
-      const yt = await requireSignedIn();
-      const feed = await yt.music.getHomeFeed();
-      return { shelves: toShelves(feed.sections) };
+    account: async () => library.getAccount(await requireSignedIn()),
+    home: async () => library.getHome(await requireSignedIn()),
+    async search(params) {
+      const query = String(params?.query ?? '').trim().slice(0, 200);
+      if (!query) return { tracks: [], hasMore: false };
+      return library.search(await getClient(), { query, ...pageOf(params) });
     },
+    playlist: async params => library.getPlaylistTracks(await requireSignedIn(), { id: browseIdOf(params), ...pageOf(params) }),
+    album: async params => library.getAlbum(await getClient(), { id: browseIdOf(params) }),
+    library_playlists: async () => library.getLibraryPlaylists(await requireSignedIn()),
+    liked_ids: async () => library.getLikedVideoIds(await requireSignedIn()),
+    up_next: async params => library.getUpNext(await getClient(), { videoId: videoIdOf(params) }),
+    like: async params => library.setLike(await requireSignedIn(), { videoId: videoIdOf(params), liked: params?.liked === true }),
+    report_play: async params => library.reportPlay(await requireSignedIn(), { videoId: videoIdOf(params) }),
   };
 
   return {
