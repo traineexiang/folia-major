@@ -27,6 +27,8 @@ const { createExternalUrlOpener } = require('./externalUrlPolicy.cjs');
 const { createSenderGuardedHandler } = require('./ipcAccessGuard.cjs');
 const { createBodianApiBridge } = require('./bodianApiBridge.cjs');
 const { createBodianMediaPolicy } = require('./bodian/mediaCors.cjs');
+const { createYtMusicApiBridge } = require('./ytmusicApiBridge.cjs');
+const { YTMUSIC_AUDIO_SCHEME, registerYtMusicAudioProtocol } = require('./ytmusic/audioProtocol.cjs');
 const { createQqAuthSessionRepository } = require('./qqAuthSessionRepository.cjs');
 const { DEFAULT_DISCORD_APPLICATION_ID, createDiscordPresenceController } = require('./discordPresence.cjs');
 const { createVoiceInputPauseMonitor } = require('./voiceInputPause.cjs');
@@ -94,6 +96,17 @@ protocol.registerSchemesAsPrivileged([
   },
   {
     scheme: TRANSCODE_PROTOCOL_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+  {
+    // YouTube Music audio, streamed in bounded chunks by the main process (electron/ytmusic/audioProtocol.cjs).
+    scheme: YTMUSIC_AUDIO_SCHEME,
     privileges: {
       standard: true,
       secure: true,
@@ -208,6 +221,8 @@ const bodianApiBridge = createBodianApiBridge({ store, safeStorage,
   },
 });
 const qqAuthSessionRepository = createQqAuthSessionRepository({ store, safeStorage });
+// YouTube Music: the Google cookie stays in the main process (safeStorage); see electron/ytmusicApiBridge.cjs.
+const ytMusicApiBridge = createYtMusicApiBridge({ store, safeStorage });
 // AI API keys are sealed with safeStorage instead of sitting in config.json as plaintext, and never
 // leave the main process: the renderer only sees AI_API_KEYS_CONFIGURED (#586).
 const aiCredentials = createAiCredentialStore({ store, safeStorage });
@@ -5076,6 +5091,7 @@ app.whenReady().then(async () => {
   setupVideoExportDisplayMediaHandler();
   setupCorsBypassHandlers();
   localCoverAssetStore.registerProtocolHandler(protocol, electronNet);
+  registerYtMusicAudioProtocol({ protocol, resolveStream: ytMusicApiBridge.resolveStream });
   // Transcode fallback is an optional degradation path; a failure preparing it must never keep
   // the rest of this handler, createWindow() included, from running.
   try {
@@ -5880,6 +5896,12 @@ ipcMain.handle('bodian-api-request', (event, operation, params) => {
     return { ok: false, error: { code: 'unavailable', message: 'Untrusted Bodian request' } };
   }
   return bodianApiBridge.request(operation, params);
+});
+ipcMain.handle('ytmusic-api-request', (event, operation, params) => {
+  if (!isTrustedMainWindowContents(event.sender)) {
+    return { ok: false, error: { code: 'unavailable', message: 'Untrusted YouTube Music request' } };
+  }
+  return ytMusicApiBridge.request(operation, params);
 });
 
 ipcMain.handle('window-minimize', () => {
