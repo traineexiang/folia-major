@@ -130,6 +130,16 @@ export const settingsCommands: CommandPaletteCommand[] = [
         // signing out has to close the command off while the palette is already open.
         { isAvailable: context => context?.settings.canReportNeteasePlayback() ?? true },
     ),
+    createSettingsAnchorCommand('settings-ytmusic-scrobble', 'YouTube Music listening history', 'Jump to whether finished plays are added to your YouTube Music history', ['scrobble', 'youtube music history', 'listen again', 'report plays', 'ytmusic'], 'scrobbleSettings'),
+    createToggleCommand(
+        'ytmusic-scrobble-toggle',
+        'settings',
+        'YouTube Music listening history',
+        'Turn adding finished YouTube Music plays to your history on or off',
+        ['scrobble toggle', 'youtube music history', 'listen again', 'report plays', 'ytmusic'],
+        context => context.settings.toggleYtMusicScrobble(),
+        { isAvailable: context => context?.settings.canReportYtMusicPlayback() ?? true },
+    ),
     createSettingsAnchorCommand('settings-audio-output', 'Audio output', 'Jump to the audio output device and format settings', ['output device', 'audio device', 'sound card', '输出设备'], 'audioOutputSettings'),
     createSettingsAnchorCommand('settings-transition', 'Smart transition', 'Jump to the FOLIA transition settings', ['automix', 'crossfade', 'transition', '智能过渡', '转场'], 'transitionSettings'),
     createSettingsAnchorCommand('settings-local-lyrics-priority', 'Local song lyrics priority', 'Choose whether local songs prefer local or online lyrics', ['local lyrics priority', 'online lyrics first', 'local song lyrics', '本地歌曲歌词优先级', '在线优先', '本地歌词', 'bendigeciyouxianji', 'bdgcyxj'], 'lyrics'),

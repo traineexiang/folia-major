@@ -1,5 +1,5 @@
 import type { SongResult } from '../../types';
-import type { OmniPlaybackReport } from '../../types/onlineMusic';
+import type { OmniPlaybackReport, OnlineProviderId } from '../../types/onlineMusic';
 import { getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
 import { useOnlineProviderAccountStore } from '../../stores/useOnlineProviderAccountStore';
 import { omni } from './omni';
@@ -42,10 +42,10 @@ export const resetPlaybackReportGate = (): void => {
 };
 
 /** The provider is registered, declares the capability, and is configured on this build. */
-export const isNeteaseScrobbleSupported = (): boolean => {
+export const isProviderScrobbleSupported = (providerId: OnlineProviderId): boolean => {
     try {
-        return Boolean(omni.getProviderCapabilities('netease').playbackReports)
-            && omni.getProviderAvailability('netease').configured;
+        return Boolean(omni.getProviderCapabilities(providerId).playbackReports)
+            && omni.getProviderAvailability(providerId).configured;
     } catch {
         return false;
     }
@@ -56,10 +56,14 @@ export const isNeteaseScrobbleSupported = (): boolean => {
  * panel and the command palette both gate on this - through this one function, so neither can
  * offer a state the other refuses.
  */
-export const isNeteaseScrobbleReady = (): boolean => (
-    isNeteaseScrobbleSupported()
-    && useOnlineProviderAccountStore.getState().accounts.netease?.status === 'authenticated'
+export const isProviderScrobbleReady = (providerId: OnlineProviderId): boolean => (
+    isProviderScrobbleSupported(providerId)
+    && useOnlineProviderAccountStore.getState().accounts[providerId]?.status === 'authenticated'
 );
+
+export const isNeteaseScrobbleSupported = (): boolean => isProviderScrobbleSupported('netease');
+export const isNeteaseScrobbleReady = (): boolean => isProviderScrobbleReady('netease');
+export const isYtMusicScrobbleReady = (): boolean => isProviderScrobbleReady('ytmusic');
 
 /**
  * Sends one report if the rate allows it. Returns whether it was sent.

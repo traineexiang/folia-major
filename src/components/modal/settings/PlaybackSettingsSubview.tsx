@@ -14,7 +14,7 @@ import SettingsSectionHeading from './navigation/SettingsSectionHeading';
 import { useLyricSettingsStore } from '../../../stores/useLyricSettingsStore';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
 import { useOnlineProviderAccountStore } from '../../../stores/useOnlineProviderAccountStore';
-import { isNeteaseScrobbleReady } from '../../../services/onlineMusic/playbackReportGate';
+import { isNeteaseScrobbleReady, isYtMusicScrobbleReady } from '../../../services/onlineMusic/playbackReportGate';
 
 // src/components/modal/settings/PlaybackSettingsSubview.tsx
 // Playback behavior and output-device settings extracted from the global settings modal.
@@ -51,11 +51,13 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         audioOutputDeviceId,
         enableTranscodeFallback,
         neteaseScrobbleEnabled,
+        ytmusicScrobbleEnabled,
         playbackFadeEnabled,
         autoSkipUnplayable,
         queueAddBehavior,
         onToggleTranscodeFallback,
         onToggleNeteaseScrobble,
+        onToggleYtMusicScrobble,
         onTogglePlaybackFade,
         onToggleAutoSkipUnplayable,
         onQueueAddBehaviorChange,
@@ -63,11 +65,13 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
         audioOutputDeviceId: state.audioOutputDeviceId,
         enableTranscodeFallback: state.enableTranscodeFallback,
         neteaseScrobbleEnabled: state.neteaseScrobbleEnabled,
+        ytmusicScrobbleEnabled: state.ytmusicScrobbleEnabled,
         playbackFadeEnabled: state.playbackFadeEnabled,
         autoSkipUnplayable: state.autoSkipUnplayable,
         queueAddBehavior: state.queueAddBehavior,
         onToggleTranscodeFallback: state.handleToggleTranscodeFallback,
         onToggleNeteaseScrobble: state.handleToggleNeteaseScrobble,
+        onToggleYtMusicScrobble: state.handleToggleYtMusicScrobble,
         onTogglePlaybackFade: state.handleTogglePlaybackFade,
         onToggleAutoSkipUnplayable: state.handleToggleAutoSkipUnplayable,
         onQueueAddBehaviorChange: state.handleSetQueueAddBehavior,
@@ -76,7 +80,9 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
     // signs out. `isNeteaseScrobbleReady` is the same predicate the command palette gates on, so the
     // two can never disagree about whether the toggle may be flipped.
     useOnlineProviderAccountStore(state => state.accounts.netease?.status);
+    useOnlineProviderAccountStore(state => state.accounts.ytmusic?.status);
     const canReportNeteasePlayback = isNeteaseScrobbleReady();
+    const canReportYtMusicPlayback = isYtMusicScrobbleReady();
     const {
         autoUseBestLyric,
         preferredAlternativeLyricSource,
@@ -258,6 +264,26 @@ const PlaybackSettingsSubview: React.FC<PlaybackSettingsSubviewProps> = ({
                             neteaseScrobbleEnabled,
                             () => onToggleNeteaseScrobble(!neteaseScrobbleEnabled),
                             !canReportNeteasePlayback,
+                        )}
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {t('options.ytmusicScrobble')}
+                            </div>
+                            <div className="text-[11px] opacity-50 max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                {t('options.ytmusicScrobbleDesc')}
+                            </div>
+                            {!canReportYtMusicPlayback && (
+                                <div className="text-[11px] max-w-[420px]" style={{ color: 'var(--text-secondary)' }}>
+                                    {t('options.ytmusicScrobbleSignInHint')}
+                                </div>
+                            )}
+                        </div>
+                        {renderToggle(
+                            ytmusicScrobbleEnabled,
+                            () => onToggleYtMusicScrobble(!ytmusicScrobbleEnabled),
+                            !canReportYtMusicPlayback,
                         )}
                     </div>
                 </div>

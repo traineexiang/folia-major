@@ -31,6 +31,7 @@ export const ENABLE_TRANSCODE_FALLBACK_KEY = 'folia_enable_transcode_fallback';
 
 /** Whether finished plays of online NetEase tracks are reported to the signed-in account. */
 export const NETEASE_SCROBBLE_KEY = 'folia_netease_scrobble';
+export const YTMUSIC_SCROBBLE_KEY = 'folia_ytmusic_scrobble';
 
 /** Whether pause fades out and resume fades in (services/playbackFade). On unless switched off. */
 export const PLAYBACK_FADE_KEY = 'folia_playback_fade_enabled';
@@ -148,6 +149,8 @@ export type AudioSettingsState = {
     enableTranscodeFallback: boolean;
     /** Report finished plays of online NetEase tracks to the signed-in account. Off by default. */
     neteaseScrobbleEnabled: boolean;
+    /** Add finished plays of YouTube Music tracks to the signed-in account's history. Off by default. */
+    ytmusicScrobbleEnabled: boolean;
     /** Short fade when pausing and resuming instead of cutting the sound. On by default. */
     playbackFadeEnabled: boolean;
     /** Count down to a skip when a song is restricted or fails for an unknown reason. Off by default. */
@@ -165,6 +168,7 @@ export type AudioSettingsState = {
     handleToggleAutoPlayOnLaunch: (enable: boolean) => void;
     handleToggleTranscodeFallback: (enable: boolean) => void;
     handleToggleNeteaseScrobble: (enable: boolean) => void;
+    handleToggleYtMusicScrobble: (enable: boolean) => void;
     handleTogglePlaybackFade: (enable: boolean) => void;
     handleToggleAutoSkipUnplayable: (enable: boolean) => void;
     handleSetAudioOutputDeviceId: (deviceId: string) => void;
@@ -193,6 +197,7 @@ export const useAudioSettingsStore = create<AudioSettingsState>((set, get) => ({
     ),
     // Off unless asked for: it writes to the listener's music account, so it is never a default.
     neteaseScrobbleEnabled: getStoredBoolean(NETEASE_SCROBBLE_KEY, false),
+    ytmusicScrobbleEnabled: getStoredBoolean(YTMUSIC_SCROBBLE_KEY, false),
     playbackFadeEnabled: getStoredBoolean(PLAYBACK_FADE_KEY, true),
     // Off unless asked for: skipping a song the listener picked is not something to do by default.
     autoSkipUnplayable: getStoredBoolean(AUTO_SKIP_UNPLAYABLE_KEY, false),
@@ -244,6 +249,10 @@ export const useAudioSettingsStore = create<AudioSettingsState>((set, get) => ({
     handleToggleNeteaseScrobble: (enable) => {
         setStoredBoolean(NETEASE_SCROBBLE_KEY, enable);
         set({ neteaseScrobbleEnabled: enable });
+    },
+    handleToggleYtMusicScrobble: (enable) => {
+        setStoredBoolean(YTMUSIC_SCROBBLE_KEY, enable);
+        set({ ytmusicScrobbleEnabled: enable });
     },
     handleTogglePlaybackFade: (enable) => {
         setStoredBoolean(PLAYBACK_FADE_KEY, enable);
@@ -348,6 +357,7 @@ export const selectAudioSettingsSnapshot = (state: AudioSettingsState) => ({
     autoPlayOnLaunch: state.autoPlayOnLaunch,
     enableTranscodeFallback: state.enableTranscodeFallback,
     neteaseScrobbleEnabled: state.neteaseScrobbleEnabled,
+    ytmusicScrobbleEnabled: state.ytmusicScrobbleEnabled,
     playbackFadeEnabled: state.playbackFadeEnabled,
     autoSkipUnplayable: state.autoSkipUnplayable,
     audioOutputDeviceId: state.audioOutputDeviceId,
@@ -363,6 +373,7 @@ export const selectAudioSettingsSnapshot = (state: AudioSettingsState) => ({
     handleToggleAutoPlayOnLaunch: state.handleToggleAutoPlayOnLaunch,
     handleToggleTranscodeFallback: state.handleToggleTranscodeFallback,
     handleToggleNeteaseScrobble: state.handleToggleNeteaseScrobble,
+    handleToggleYtMusicScrobble: state.handleToggleYtMusicScrobble,
     handleTogglePlaybackFade: state.handleTogglePlaybackFade,
     handleToggleAutoSkipUnplayable: state.handleToggleAutoSkipUnplayable,
     handleSetAudioOutputDeviceId: state.handleSetAudioOutputDeviceId,

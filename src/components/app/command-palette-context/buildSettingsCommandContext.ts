@@ -6,7 +6,7 @@ import { useAutomixSettingsStore } from '../../../stores/useAutomixSettingsStore
 import { useDesktopSettingsStore } from '../../../stores/useDesktopSettingsStore';
 import { useLocalLibrarySettingsStore } from '../../../stores/useLocalLibrarySettingsStore';
 import { isLocalLibraryAutoScanSupported } from '../../../services/localLibraryAutoScan';
-import { isNeteaseScrobbleReady } from '../../../services/onlineMusic/playbackReportGate';
+import { isNeteaseScrobbleReady, isYtMusicScrobbleReady } from '../../../services/onlineMusic/playbackReportGate';
 import { useLyricSettingsStore } from '../../../stores/useLyricSettingsStore';
 import { useGridViewSettingsStore } from '../../../stores/useGridViewSettingsStore';
 import { useLatticeSettingsStore } from '../../../stores/useLatticeSettingsStore';
@@ -191,6 +191,10 @@ export const buildSettingsCommandContext = (
         canReportNeteasePlayback: isNeteaseScrobbleReady,
         toggleNeteaseScrobble: () => audio.handleToggleNeteaseScrobble(
             !useAudioSettingsStore.getState().neteaseScrobbleEnabled,
+        ),
+        canReportYtMusicPlayback: isYtMusicScrobbleReady,
+        toggleYtMusicScrobble: () => audio.handleToggleYtMusicScrobble(
+            !useAudioSettingsStore.getState().ytmusicScrobbleEnabled,
         ),
         voiceInputPauseSupported: deps.voiceInputPauseSupported,
         modSystemEnabled: desktop.modSystemEnabled,

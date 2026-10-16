@@ -147,6 +147,8 @@ const createContext = (overrides: CommandPaletteContextOverrides = {}): CommandP
             toggleLocalLibraryAutoScan: vi.fn(),
             canReportNeteasePlayback: vi.fn(() => false),
             toggleNeteaseScrobble: vi.fn(),
+            canReportYtMusicPlayback: vi.fn(() => false),
+            toggleYtMusicScrobble: vi.fn(),
             voiceInputPauseSupported: false,
             modSystemEnabled: false,
             toggleVoiceInputPause: vi.fn(),

@@ -100,6 +100,7 @@ import { usePlaybackUiEffects } from './hooks/usePlaybackUiEffects';
 import { useLibraryPlaybackController } from './hooks/useLibraryPlaybackController';
 import { useNavidromeScrobbleReporter } from './hooks/useNavidromeScrobbleReporter';
 import { useNeteaseScrobbleReporter } from './hooks/useNeteaseScrobbleReporter';
+import { useYtMusicScrobbleReporter } from './hooks/useYtMusicScrobbleReporter';
 import { usePlaybackQueueController } from './hooks/usePlaybackQueueController';
 import { usePlaybackTransportController } from './hooks/usePlaybackTransportController';
 import { useLocalLibraryCatalog } from './hooks/useLocalLibraryCatalog';
@@ -1425,6 +1426,11 @@ export default function App() {
         activeDeck: automix.activeDeck,
     });
     useNeteaseScrobbleReporter({
+        audioRef,
+        currentSong,
+        activeDeck: automix.activeDeck,
+    });
+    useYtMusicScrobbleReporter({
         audioRef,
         currentSong,
         activeDeck: automix.activeDeck,

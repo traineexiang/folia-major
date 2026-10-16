@@ -315,6 +315,9 @@ export type CommandPaletteSettingsContext = {
      */
     canReportNeteasePlayback: () => boolean;
     toggleNeteaseScrobble: () => void;
+    /** Same as canReportNeteasePlayback, for YouTube Music watch-history reports. */
+    canReportYtMusicPlayback: () => boolean;
+    toggleYtMusicScrobble: () => void;
     voiceInputPauseSupported: boolean;
     /** Lab switch for the experimental mod system; gates the `mods` command. */
     modSystemEnabled: boolean;
