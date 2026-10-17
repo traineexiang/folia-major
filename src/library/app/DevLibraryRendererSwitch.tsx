@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { listLibrarySuites } from '../registry';
 import { useActiveLibrarySuiteId } from './librarySuiteChoice';
@@ -13,6 +14,8 @@ import { switchLibrarySuite } from './switchLibrarySuite';
 // 按钮，右下角是在线 provider 切换器，顶上是桌面版的标题栏与首页页头；集合层上仍在原来的位置。
 // P4.3 起歌手页上也出现：贴着底边居中——左边是网格歌手页的信息面板（编辑歌手的按钮在它底部），右边是专辑列表按钮。
 // B0 起和设置项写同一个 store；按下的按钮是实际生效的 suite（store 里的选择可能在这个构建里不可用）。
+// 挂到 body 上：资料库层整个在播放胶囊下面，窄窗口里胶囊（和它向下补的悬停命中区）会盖住这里，点击被吞、
+// 指针靠近还会把胶囊展开。portal 之后 z-[120] 才真的压过胶囊。
 
 const PLACEMENT_CLASS = {
     collection: 'bottom-12 left-4',
@@ -27,7 +30,7 @@ const DevLibraryRendererSwitch: React.FC<{ sessionKey: string; placement?: keyof
     const { t } = useTranslation();
     const activeSuite = useActiveLibrarySuiteId();
 
-    return (
+    return createPortal(
         <div
             data-testid="dev-library-renderer-switch"
             data-placement={placement}
@@ -51,7 +54,8 @@ const DevLibraryRendererSwitch: React.FC<{ sessionKey: string; placement?: keyof
                     {t(suite.labelKey)}
                 </button>
             ))}
-        </div>
+        </div>,
+        document.body,
     );
 };
 
