@@ -11,7 +11,6 @@ import {
     type YtMusicAccountDto,
     type YtMusicCollectionDto,
     type YtMusicDetailDto,
-    type YtMusicShelfItemDto,
     type YtMusicTrackDto,
 } from './ytmusicNormalize';
 
@@ -20,7 +19,6 @@ import {
 // pasted cookie. Lyrics are left to Folia's lyric matching.
 
 type TrackPage = { tracks: YtMusicTrackDto[]; hasMore: boolean; detail?: YtMusicDetailDto };
-type HomeFeed = { shelves: Array<{ title: string; items: YtMusicShelfItemDto[] }> };
 
 const videoIdOf = (song: { sourceRef?: UnifiedSong['sourceRef'] }): string => {
     const source = song.sourceRef;
@@ -32,12 +30,10 @@ const videoIdOf = (song: { sourceRef?: UnifiedSong['sourceRef'] }): string => {
 
 const toSongs = (tracks: YtMusicTrackDto[]) => tracks.map(normalizeYtMusicSong);
 
-// The "Listen again" shelf is the account's own recent listening; it seeds radio when nothing plays.
-export const getYtMusicRecentTracks = async (): Promise<YtMusicTrackDto[]> => {
-    const { shelves } = await requestYtMusic<HomeFeed>('home');
-    return shelves.flatMap(shelf => shelf.items)
-        .flatMap(item => (item.type === 'track' ? [item.track] : []));
-};
+// The account's YouTube Music history (what "Listen again" is built from), newest first.
+const getYtMusicRecentTracks = async (): Promise<YtMusicTrackDto[]> => (
+    (await requestYtMusic<{ tracks: YtMusicTrackDto[] }>('history')).tracks
+);
 
 export const ytmusicProvider: OnlineMusicProvider = {
     id: 'ytmusic',
@@ -131,6 +127,9 @@ export const ytmusicProvider: OnlineMusicProvider = {
         },
     },
     recommendations: {
+        async getRecentlyPlayedSongs() {
+            return toSongs(await getYtMusicRecentTracks());
+        },
         // Personal FM is YouTube Music radio seeded from the account's recent listening.
         async getPersonalFm() {
             const recent = await getYtMusicRecentTracks();

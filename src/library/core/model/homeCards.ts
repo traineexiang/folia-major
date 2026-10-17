@@ -4,12 +4,14 @@ import type { LibraryHomeCard, LibraryHomeRadioFeed } from '../contracts/homeMod
 
 // src/library/core/model/homeCards.ts
 // 在线首页三个页签的卡片视图模型（纯函数，原样搬自 Grid3D）：账户歌单、收藏专辑、电台（私人 FM、每日推荐、
-// 推荐歌单）。卡片的 raw 是打开集合时交给描述工厂的来源对象，形状与原先一致，所以宿主收到的集合描述不变。
+// 最近播放、推荐歌单）。卡片的 raw 是打开集合时交给描述工厂的来源对象，形状与原先一致，所以宿主收到的集合描述不变。
 
 /** 电台页签里的私人 FM 卡：点它直接播放，不打开集合。 */
 export const PERSONAL_FM_CARD_ID = 'personal_fm';
 /** 电台页签里的每日推荐卡。 */
 export const DAILY_RECOMMENDATIONS_CARD_ID = 'daily_recommendations';
+/** 电台页签里的最近播放卡（账户在 provider 上的播放历史）；集合类型同名。 */
+export const RECENTLY_PLAYED_CARD_ID = 'recently_played';
 
 /** 在线集合卡片上的「作者」：专辑的歌手（逗号连接），没有就用创建者昵称。 */
 export const getProviderCollectionArtistLabel = (
@@ -59,10 +61,11 @@ type RadioSource = {
     summary?: string;
     isFm?: boolean;
     isDailyRecommendations?: boolean;
+    isRecentlyPlayed?: boolean;
 };
 
 /**
- * 电台页签：私人 FM、每日推荐排在推荐歌单前面。私人 FM 卡的描述是当前的 FM 模式（provider 支持模式时），
+ * 电台页签：私人 FM、每日推荐、最近播放（provider 有播放历史时）排在推荐歌单前面。私人 FM 卡的描述是当前的 FM 模式（provider 支持模式时），
  * 否则是「私人 FM」。feed 还没读到时为空。
  */
 export const buildOnlineRadioCards = (
@@ -87,6 +90,14 @@ export const buildOnlineRadioCards = (
             summary: t('home.dailyRecommendationsSummary'),
             isDailyRecommendations: true,
         }]),
+        ...(feed.recentlyPlayedCount ? [{
+            id: RECENTLY_PLAYED_CARD_ID,
+            name: t('home.recentlyPlayed'),
+            coverUrl: feed.recentlyPlayedCoverUrl,
+            trackCount: feed.recentlyPlayedCount,
+            description: t('home.recentlyPlayedDescription'),
+            isRecentlyPlayed: true,
+        }] : []),
         ...feed.recommended.map(collection => {
             const description = collection.description || collection.creator?.nickname || '';
             return {
@@ -108,7 +119,9 @@ export const buildOnlineRadioCards = (
             ? 'radio'
             : source.isDailyRecommendations
                 ? 'daily_recommendations'
-                : 'playlist',
+                : source.isRecentlyPlayed
+                    ? RECENTLY_PLAYED_CARD_ID
+                    : 'playlist',
         raw: source,
     }));
 };

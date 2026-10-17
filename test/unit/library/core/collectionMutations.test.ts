@@ -107,6 +107,7 @@ const fakeOmni = (overrides: Partial<CollectionMutationOmni> = {}) => ({
     getRecommendationHistoryDates: vi.fn(async () => ['2024-01-02']),
     getRecommendationHistorySongs: vi.fn(async () => [onlineSong('h-0'), onlineSong('h-1')]),
     getDailySongs: vi.fn(async () => [onlineSong('fresh-0')]),
+    getRecentlyPlayedSongs: vi.fn(async () => []),
     ...overrides,
 });
 
@@ -148,6 +149,7 @@ const onlineResource = async (descriptor: OnlineGridViewCollectionDescriptor, tr
         getCollectionDetail: vi.fn(async () => null),
         getPersonalFm: vi.fn(async () => []),
         getDailySongs: vi.fn(async () => tracks),
+        getRecentlyPlayedSongs: vi.fn(async () => []),
         readCache: vi.fn(async () => ({ tracks: [], snapshotTime: 0, schemaVersion: 0 })),
         writeCache: vi.fn(async (_key, written, snapshotTime) => { writes.push({ tracks: written, snapshotTime }); }),
         wait: async () => {},

@@ -76,6 +76,7 @@ const harness = (
             getCollectionDetail: vi.fn(async () => null),
             getPersonalFm: vi.fn(async () => songs(3, 'fm')),
             getDailySongs: vi.fn(async () => songs(4, 'daily')),
+            getRecentlyPlayedSongs: vi.fn(async () => songs(2, 'recent')),
             readCache: vi.fn(async () => cache),
             writeCache: vi.fn(async (key, tracks, snapshotTime) => {
                 writes.push({ key, tracks, snapshotTime });
@@ -152,8 +153,10 @@ describe('online collection resource: loading', () => {
         expect(resource.getSnapshot().detail).toMatchObject({ name: 'Detailed', trackCount: 20 });
     });
 
-    it('loads personal FM and daily recommendations with a single call and no paging', async () => {
+    it('loads personal FM, daily recommendations and recently played with a single call and no paging', async () => {
         const h = harness([]);
+        const recent = createOnlineCollectionResource('recent', h.deps);
+        recent.ensure(playlist({ type: 'recently_played', id: 'recently_played', tracksUpdatedAt: undefined }), {});
         const fm = createOnlineCollectionResource('fm', h.deps);
         fm.ensure(playlist({ type: 'radio', id: 'personal_fm' }), {});
         const daily = createOnlineCollectionResource('daily', h.deps);
@@ -162,6 +165,7 @@ describe('online collection resource: loading', () => {
 
         expect(ids(fm.getSnapshot().tracks)).toEqual(ids(songs(3, 'fm')));
         expect(ids(daily.getSnapshot().tracks)).toEqual(ids(songs(4, 'daily')));
+        expect(ids(recent.getSnapshot().tracks)).toEqual(ids(songs(2, 'recent')));
         expect(h.pages).toEqual([]);
         expect(h.deps.getCollectionDetail).not.toHaveBeenCalled();
     });

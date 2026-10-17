@@ -3,7 +3,7 @@
 // YouTube pages by continuation token; Omni pages by offset. Each call walks continuations until it
 // covers offset + limit, which is stateless and cheap at personal-library sizes.
 
-const { text, toCollection, toShelves, toTrack } = require('./normalize.cjs');
+const { text, toCollection, toTrack } = require('./normalize.cjs');
 
 const MAX_PAGES = 40; // ~4000 rows; guards against a continuation loop
 
@@ -108,9 +108,18 @@ async function getUpNext(yt, { videoId }) {
   return { tracks: (panel.contents ?? []).map(toTrack).filter(Boolean) };
 }
 
-async function getHome(yt) {
-  const feed = await yt.music.getHomeFeed();
-  return { shelves: toShelves(feed.sections) };
+const HISTORY_LIMIT = 100;
+
+// The account's YouTube Music history (newest first, grouped by day upstream), each song once.
+// youtubei.js has no Music client call for it; the page is a plain browse of MusicShelf rows.
+async function getHistory(yt) {
+  const page = await yt.actions.execute('/browse', { browseId: 'FEmusic_history', client: 'YTMUSIC', parse: true });
+  const seen = new Set();
+  const tracks = (page.contents_memo?.get('MusicShelf') ?? [])
+    .flatMap(shelf => shelf.contents ?? [])
+    .map(toTrack)
+    .filter(track => track && !seen.has(track.videoId) && seen.add(track.videoId));
+  return { tracks: tracks.slice(0, HISTORY_LIMIT) };
 }
 
 async function setLike(yt, { videoId, liked }) {
@@ -129,7 +138,7 @@ async function reportPlay(yt, { videoId }) {
 module.exports = {
   getAccount,
   getAlbum,
-  getHome,
+  getHistory,
   getLibraryPlaylists,
   getLikedVideoIds,
   getPlaylistTracks,

@@ -24,7 +24,7 @@ const fakeYoutubei = ({ loggedIn = true, basicInfo = vi.fn() } = {}) => {
     const create = vi.fn(async (_options: { cookie?: string }) => ({
         session: { logged_in: loggedIn, player: {} },
         getBasicInfo: basicInfo,
-        music: { getHomeFeed: async () => ({ sections: [] }) },
+        actions: { execute: async () => ({ contents_memo: new Map() }) },
     }));
     return { create, load: async () => ({ Innertube: { create }, Platform: { shim: {} }, UniversalCache: class {} }) };
 };
@@ -57,7 +57,7 @@ describe('YouTube Music bridge', () => {
         const { load } = fakeYoutubei();
         const bridge = createYtMusicApiBridge({ store, safeStorage: cipher(), loadYoutubei: load });
         expect(await bridge.request('constructor')).toMatchObject({ ok: false, error: { code: 'unsupported' } });
-        for (const operation of ['status', 'home', 'logout']) {
+        for (const operation of ['status', 'history', 'logout']) {
             expect(JSON.stringify(await bridge.request(operation))).not.toContain('fixture-private');
         }
     });
@@ -81,7 +81,23 @@ describe('YouTube Music bridge', () => {
     it('requires sign-in for library reads', async () => {
         const { load } = fakeYoutubei();
         const bridge = createYtMusicApiBridge({ store: createStore(), safeStorage: cipher(), loadYoutubei: load });
-        expect(await bridge.request('home')).toMatchObject({ ok: false, error: { code: 'auth-required' } });
+        expect(await bridge.request('history')).toMatchObject({ ok: false, error: { code: 'auth-required' } });
+    });
+    it('lists history newest first, each song once', async () => {
+        const store = createStore();
+        createYtMusicSessionRepository({ store, safeStorage: cipher() }).set(COOKIE);
+        const row = (id: string, title: string) => ({ video_id: id, title, item_type: 'song', artists: [{ name: 'A' }] });
+        const execute = vi.fn(async () => ({ contents_memo: new Map([['MusicShelf', [
+            { contents: [row('m9SMT5ipbxk', 'Today'), row('NhRQqeb0mds', 'Also today')] },
+            { contents: [row('m9SMT5ipbxk', 'Yesterday')] },
+        ]]]) }));
+        const { load, create } = fakeYoutubei();
+        create.mockImplementation(async () => ({ session: { logged_in: true, player: {} }, actions: { execute } }) as never);
+        const bridge = createYtMusicApiBridge({ store, safeStorage: cipher(), loadYoutubei: load });
+        const result = await bridge.request('history');
+        expect(execute).toHaveBeenCalledWith('/browse', expect.objectContaining({ browseId: 'FEmusic_history', client: 'YTMUSIC' }));
+        expect(result).toMatchObject({ ok: true, data: { tracks: [{ videoId: 'm9SMT5ipbxk', title: 'Today' }, { videoId: 'NhRQqeb0mds' }] } });
+        expect((result as { data: { tracks: unknown[] } }).data.tracks).toHaveLength(2);
     });
     it('validates the video id before calling YouTube', async () => {
         const basicInfo = vi.fn();

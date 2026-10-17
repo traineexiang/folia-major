@@ -70,7 +70,7 @@ describe('home feed sections', () => {
         vi.spyOn(qqRecommendations(), 'getRecommendedCollections').mockResolvedValue([recommended]);
         useOnlineProviderAccountStore.getState().setActiveProviderId('qq');
 
-        await expect(omni.getHomeFeed()).resolves.toEqual({ personalFm: [], dailySongs: [], recommendedCollections: [recommended], partial: true });
+        await expect(omni.getHomeFeed()).resolves.toEqual({ personalFm: [], dailySongs: [], recommendedCollections: [recommended], recentlyPlayed: [], partial: true });
         expect(console.warn).toHaveBeenCalledWith('[Omni] Home feed section failed', expect.objectContaining({ providerId: 'qq' }));
     });
 

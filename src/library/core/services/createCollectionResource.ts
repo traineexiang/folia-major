@@ -18,6 +18,7 @@ const onlineDeps: OnlineCollectionResourceDeps = {
     getCollectionDetail: collection => omni.getCollectionDetail(collection),
     getPersonalFm: () => omni.getPersonalFm(),
     getDailySongs: () => omni.getDailySongs(),
+    getRecentlyPlayedSongs: () => omni.getRecentlyPlayedSongs(),
     readCache: readOnlineTracksCache,
     writeCache: writeOnlineTracksCache,
 };

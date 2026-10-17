@@ -1472,6 +1472,8 @@ export default {
     "personalFm": "私人FM",
     "dailyRecommendations": "每日推荐",
     "dailyRecommendationsDescription": "为你定制的每日歌曲",
+    "recentlyPlayed": "最近播放",
+    "recentlyPlayedDescription": "你最近听过的歌",
     "dailyRecommendationsSummary": "每天根据你的音乐偏好更新",
     "manageRecommendations": "管理推荐",
     "finishManagingRecommendations": "完成管理",

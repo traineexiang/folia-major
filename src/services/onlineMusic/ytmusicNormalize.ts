@@ -38,10 +38,6 @@ export interface YtMusicAccountDto {
     avatarUrl: string | null;
 }
 
-export type YtMusicShelfItemDto =
-    | { type: 'track'; track: YtMusicTrackDto }
-    | { type: 'collection'; collection: YtMusicCollectionDto };
-
 const LIKED_PLAYLIST_IDS = new Set(['LM', 'VLLM']);
 
 // List rows carry 60px thumbnails; googleusercontent URLs encode their size and serve any size asked for.

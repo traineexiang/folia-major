@@ -70,6 +70,14 @@ describe('online home cards', () => {
         expect(cards[2].raw).toMatchObject({ id: 'r1', description: 'Curator', summary: 'Curator' });
     });
 
+    it('a recently played card follows Daily Recommendations only when the provider has history', () => {
+        const feed = { dailyCoverUrl: '', dailyCount: 0, recommended: [] };
+        expect(buildOnlineRadioCards(feed, { t }).map(card => card.id)).toEqual(['personal_fm', 'daily_recommendations']);
+        const cards = buildOnlineRadioCards({ ...feed, supportsDailySongs: false, recentlyPlayedCoverUrl: 'recent.jpg', recentlyPlayedCount: 12 }, { t });
+        expect(cards.map(card => [card.id, card.type])).toEqual([['personal_fm', 'radio'], ['recently_played', 'recently_played']]);
+        expect(cards[1]).toMatchObject({ name: 't:home.recentlyPlayed', coverUrl: 'recent.jpg', trackCount: 12, description: 't:home.recentlyPlayedDescription' });
+    });
+
     it('the FM card shows the current FM mode when the provider has modes', () => {
         const feed = { dailyCoverUrl: '', dailyCount: 0, recommended: [] };
         expect(buildOnlineRadioCards(feed, { t, personalFmModeLabel: 'Mode X' })[0].description).toBe('Mode X');

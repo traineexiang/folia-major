@@ -10,14 +10,15 @@ import { formatCollectionBadge, resolveBravaisTileForm, resolveCollectionTrackCo
 /** 首页卡片的条目 key（与集合的条目键分开命名空间：同一面墙上两种 key 不会撞）。 */
 export const homeCardItemKey = (card: Pick<LibraryHomeCard, 'id' | 'type'>) => `card:${card.type ?? 'item'}:${card.id}`;
 
-/** 卡片类型 → 磁贴种类。电台与每日推荐是 feed；未知类型当歌单（首页的在线集合大多是歌单）。 */
+/** 卡片类型 → 磁贴种类。电台、每日推荐与最近播放是 feed；未知类型当歌单（首页的在线集合大多是歌单）。 */
 export const homeCardKind = (type: string | undefined): BravaisItemKind => {
     switch (type) {
         case 'album': return 'album';
         case 'artist': return 'artist';
         case 'folder': return 'folder';
         case 'radio':
-        case 'daily_recommendations': return 'feed';
+        case 'daily_recommendations':
+        case 'recently_played': return 'feed';
         default: return 'playlist';
     }
 };

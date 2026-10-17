@@ -25,7 +25,7 @@ const settle = async () => {
 const deps = (cached: ReturnType<typeof createCollectionTrackSnapshot<SongResult>>) => ({
     getCollectionTracks: vi.fn(async (_collection: OmniCollection, _page: { limit: number; offset: number }) => ({ items: [song('last')], nextOffset: 500, hasMore: false, total: 500 })),
     getCollectionDetail: vi.fn(async () => null),
-    getPersonalFm: vi.fn(async () => []), getDailySongs: vi.fn(async () => []),
+    getPersonalFm: vi.fn(async () => []), getDailySongs: vi.fn(async () => []), getRecentlyPlayedSongs: vi.fn(async () => []),
     readCache: vi.fn(async () => cached), writeCache: vi.fn(async () => {}), wait: async () => {},
 });
 

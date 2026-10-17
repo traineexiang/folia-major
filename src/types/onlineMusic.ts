@@ -479,6 +479,8 @@ export interface OnlineRecommendationProvider {
     getDailySongs?(refresh?: boolean): Promise<UnifiedSong[]>;
     getPersonalFm?(options?: PersonalFmRequestOptions): Promise<UnifiedSong[]>;
     getRecommendedCollections?(limit: number): Promise<ProviderCollection[]>;
+    /** 账户最近听过的歌（新的在前，每首一次）；首页电台页签的「最近播放」卡。 */
+    getRecentlyPlayedSongs?(): Promise<UnifiedSong[]>;
     getHistoryEntries?(): Promise<ProviderHistoryEntry[]>;
     getHistoryDates?(): Promise<string[]>;
     getHistorySongs?(entry: ProviderHistoryEntry | string): Promise<UnifiedSong[]>;

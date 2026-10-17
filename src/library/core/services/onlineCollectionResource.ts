@@ -31,6 +31,7 @@ export type OnlineCollectionResourceDeps = {
     getCollectionDetail: (collection: OmniCollection) => Promise<ProviderCollection | null>;
     getPersonalFm: () => Promise<SongResult[]>;
     getDailySongs: () => Promise<SongResult[]>;
+    getRecentlyPlayedSongs: () => Promise<SongResult[]>;
     readCache: (collection: OnlineGridViewCollectionDescriptor, currentUserId?: MediaId | null) => Promise<OnlineTracksCacheEntry>;
     writeCache: (cacheKey: string, tracks: SongResult[], snapshotTime: number, progress?: OnlineTracksCacheProgress) => Promise<void>;
     /** 补页间隔与重试退避用的等待；单测里换成立即返回。 */
@@ -45,6 +46,7 @@ const toLoadError = (error: unknown): CollectionLoadError => (
 
 const isPersonalFm = (collection: OnlineGridViewCollectionDescriptor) => collection.type === 'radio' && collection.id === 'personal_fm';
 const isDailyRecommendations = (collection: OnlineGridViewCollectionDescriptor) => collection.type === 'daily_recommendations';
+const isRecentlyPlayed = (collection: OnlineGridViewCollectionDescriptor) => collection.type === 'recently_played';
 
 export const createOnlineCollectionResource = (key: string, deps: OnlineCollectionResourceDeps): CollectionResource => {
     const state = createCollectionResourceState(key, 'online');
@@ -176,6 +178,8 @@ export const createOnlineCollectionResource = (key: string, deps: OnlineCollecti
                 responseTracks = await deps.getPersonalFm();
             } else if (isDailyRecommendations(collection)) {
                 responseTracks = await deps.getDailySongs();
+            } else if (isRecentlyPlayed(collection)) {
+                responseTracks = await deps.getRecentlyPlayedSongs();
             } else {
                 const page = await deps.getCollectionTracks(collection, { limit: ONLINE_COLLECTION_FIRST_PAGE_SIZE, offset: 0 });
                 responseTracks = page.items;

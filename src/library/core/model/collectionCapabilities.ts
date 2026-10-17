@@ -9,7 +9,7 @@ const UNSUPPORTED: LibraryCapability = { supported: false, enabled: false, pendi
 const isLoadingStatus = (status: CollectionLoadStatus) => status === 'idle' || status === 'loading';
 
 /**
- * 跳过缓存重新拉取：只有能分页的在线集合有这个动作。每日推荐自带刷新，私人 FM 不分页，
+ * 跳过缓存重新拉取：只有能分页的在线集合有这个动作。每日推荐自带刷新，私人 FM 与最近播放不分页（每次打开都现取），
  * 本地与 Navidrome 的曲目不来自在线缓存。加载中时可见但不可用。
  */
 export const resolveReloadCapability = (input: {
@@ -17,7 +17,8 @@ export const resolveReloadCapability = (input: {
     status: CollectionLoadStatus;
     collectionType?: string;
 }): LibraryCapability => {
-    if (input.kind !== 'online' || input.collectionType === 'daily_recommendations' || input.collectionType === 'radio') {
+    if (input.kind !== 'online' || input.collectionType === 'daily_recommendations' || input.collectionType === 'radio'
+        || input.collectionType === 'recently_played') {
         return UNSUPPORTED;
     }
     const pending = isLoadingStatus(input.status);

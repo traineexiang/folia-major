@@ -26,6 +26,7 @@ const HIDEABLE_DIRECTORY_ITEM_TYPES = new Set([
     'cloud',
     'radio',
     'daily_recommendations',
+    'recently_played',
 ]);
 
 export type DirectoryVisibilityTarget = Pick<LibraryDirectoryItem, 'type' | 'hideable'>;

@@ -1473,6 +1473,8 @@ export default {
     "personalFm": "Personal FM",
     "dailyRecommendations": "Daily Recommendations",
     "dailyRecommendationsDescription": "A daily mix made for you",
+    "recentlyPlayed": "Recently played",
+    "recentlyPlayedDescription": "Songs you listened to lately",
     "dailyRecommendationsSummary": "Updated every day based on your listening taste",
     "manageRecommendations": "Manage recommendations",
     "finishManagingRecommendations": "Finish managing",

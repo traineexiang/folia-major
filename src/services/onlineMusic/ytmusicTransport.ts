@@ -5,7 +5,7 @@ import { OnlineProviderError, type ProviderErrorCode } from '../../types/onlineM
 // googlevideo URLs stay in the main process; this file only sees bridge DTOs.
 
 export type YtMusicOperation =
-    | 'status' | 'login_cookie' | 'logout' | 'account' | 'audio' | 'home' | 'search' | 'playlist'
+    | 'status' | 'login_cookie' | 'logout' | 'account' | 'audio' | 'history' | 'search' | 'playlist'
     | 'album' | 'library_playlists' | 'liked_ids' | 'up_next' | 'like' | 'report_play';
 
 export type YtMusicBridgeResult =

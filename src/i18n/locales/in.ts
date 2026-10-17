@@ -1466,6 +1466,8 @@ export default {
     "personalFm": "FM Pribadi",
     "dailyRecommendations": "Rekomendasi Harian",
     "dailyRecommendationsDescription": "Campuran harian yang dibuat khusus untuk Anda",
+    "recentlyPlayed": "Baru diputar",
+    "recentlyPlayedDescription": "Lagu yang baru-baru ini Anda dengarkan",
     "dailyRecommendationsSummary": "Diperbarui setiap hari berdasarkan selera mendengar Anda",
     "manageRecommendations": "Kelola rekomendasi",
     "finishManagingRecommendations": "Selesai mengelola",

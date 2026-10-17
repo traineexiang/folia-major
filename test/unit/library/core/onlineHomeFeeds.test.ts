@@ -261,6 +261,17 @@ describe('online home feeds', () => {
         expect(feed.getSnapshot().data).toEqual({ personalFmCoverUrl: undefined, dailyCoverUrl: '', dailyCount: 0, recommended: [], supportsDailySongs: true });
     });
 
+    it('the radio feed counts recently played songs and takes the newest for the cover', async () => {
+        const recent = [{ id: 'r-0' }, { id: 'r-1' }] as unknown as SongResult[];
+        const feed = createRadioFeed({
+            getHomeFeed: async () => ({ personalFm: [], dailySongs: [], recommendedCollections: [], recentlyPlayed: recent }),
+            songCoverUrl: song => (song ? String(song.id) : undefined),
+        });
+        feed.setOwner({ providerId: 'a', userId: 1 });
+        await feed.ensure();
+        expect(feed.getSnapshot().data).toMatchObject({ recentlyPlayedCoverUrl: 'r-0', recentlyPlayedCount: 2 });
+    });
+
     // 一块没读到时照常显示读到的部分，但不记成读过：下次进电台页再读，偶发的失败不会在整个会话里留下一张空卡。
     it('shows a partial radio feed but reads it again on the next visit', async () => {
         const recommended = [album('a', 9)];

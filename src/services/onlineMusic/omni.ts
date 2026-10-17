@@ -462,23 +462,27 @@ export const omni = {
         personalFm: UnifiedSong[];
         dailySongs: UnifiedSong[];
         recommendedCollections: OmniCollection[];
+        recentlyPlayed: UnifiedSong[];
         /** 有一块失败、按空处理了：调用方可以照常显示，但下次应该再读一遍。 */
         partial?: true;
     }> {
         return withActiveProvider(async provider => {
             const recommendations = provider.recommendations;
-            // 三块各自成败：一块失败（例如 QQ 日推被上游拒绝）只让那一块为空、结果标成 partial，不把 FM 与推荐歌单
-            // 一起拖下去；三块都失败才算这次首页推荐失败。作废（AbortError）不算某一块的失败，整次照常作废。
-            const [personalFm, dailySongs, recommendedCollections] = await Promise.allSettled([
+            // 各块各自成败：一块失败（例如 QQ 日推被上游拒绝）只让那一块为空、结果标成 partial，不把 FM 与推荐歌单
+            // 一起拖下去；全部失败才算这次首页推荐失败。作废（AbortError）不算某一块的失败，整次照常作废。
+            const [personalFm, dailySongs, recommendedCollections, recentlyPlayed] = await Promise.allSettled([
                 recommendations?.getPersonalFm?.() ?? [],
                 recommendations?.getDailySongs?.() ?? [],
                 recommendations?.getRecommendedCollections?.(limit) ?? [],
+                recommendations?.getRecentlyPlayedSongs?.() ?? [],
             ]);
-            const settled = [personalFm, dailySongs, recommendedCollections];
+            const settled = [personalFm, dailySongs, recommendedCollections, recentlyPlayed];
             const failures = settled.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
             const aborted = failures.find(failure => (failure.reason as { name?: unknown } | null)?.name === 'AbortError');
             if (aborted) throw aborted.reason;
-            if (failures.length === settled.length) throw failures[0].reason;
+            // 最近播放只有少数 provider 有：没实现的块不算「读到了」，否则它让整次失败永远判不出来。
+            const sectionCount = recommendations?.getRecentlyPlayedSongs ? settled.length : settled.length - 1;
+            if (failures.length === sectionCount) throw failures[0].reason;
             failures.forEach(failure => console.warn('[Omni] Home feed section failed', {
                 providerId: provider.id,
                 name: failure.reason instanceof Error ? failure.reason.name : 'Error',
@@ -489,6 +493,7 @@ export const omni = {
                 personalFm: valueOf(personalFm),
                 dailySongs: valueOf(dailySongs),
                 recommendedCollections: valueOf(recommendedCollections),
+                recentlyPlayed: valueOf(recentlyPlayed),
                 ...(failures.length > 0 ? { partial: true as const } : {}),
             };
         });
@@ -500,6 +505,10 @@ export const omni = {
 
     async getDailySongs(refresh?: boolean): Promise<UnifiedSong[]> {
         return withActiveProvider(async provider => provider.recommendations?.getDailySongs?.(refresh) ?? []);
+    },
+
+    async getRecentlyPlayedSongs(): Promise<UnifiedSong[]> {
+        return withActiveProvider(async provider => provider.recommendations?.getRecentlyPlayedSongs?.() ?? []);
     },
 
     async getRecommendationHistory(): Promise<OmniHistoryEntry[]> {

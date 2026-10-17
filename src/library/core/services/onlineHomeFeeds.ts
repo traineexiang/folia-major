@@ -25,6 +25,7 @@ export type OnlineHomeFeedDeps = {
         personalFm: SongResult[];
         dailySongs: SongResult[];
         recommendedCollections: ProviderCollection[];
+        recentlyPlayed?: SongResult[];
         partial?: true;
     }>;
     songCoverUrl(song: SongResult | undefined, providerId: string): string | undefined;
@@ -134,14 +135,14 @@ export const createFavoriteAlbumsFeed = (
     load: (owner, isCurrent) => loadAllFavoriteAlbums(deps, owner.userId, isCurrent),
 });
 
-/** 电台 feed 资源：私人 FM 与每日推荐只取封面与数量（卡片由 core/model/homeCards 组装）。 */
+/** 电台 feed 资源：私人 FM、每日推荐与最近播放只取封面与数量（卡片由 core/model/homeCards 组装）。 */
 export const createRadioFeed = (
     deps: Pick<OnlineHomeFeedDeps, 'getHomeFeed' | 'songCoverUrl' | 'supportsDailySongs'>,
 ): LibraryHomeFeedResource<LibraryHomeRadioFeed | null> => createHomeFeedResource<LibraryHomeRadioFeed | null>({
     label: 'radio feed',
     empty: null,
     load: async (owner) => {
-        const { personalFm, dailySongs, recommendedCollections, partial } = await deps.getHomeFeed(HOME_FEED_RECOMMENDATION_LIMIT);
+        const { personalFm, dailySongs, recommendedCollections, recentlyPlayed = [], partial } = await deps.getHomeFeed(HOME_FEED_RECOMMENDATION_LIMIT);
         return {
             ...(partial ? { partial } : {}),
             personalFmCoverUrl: deps.songCoverUrl(personalFm[0], owner.providerId),
@@ -149,6 +150,10 @@ export const createRadioFeed = (
             dailyCount: dailySongs.length,
             supportsDailySongs: deps.supportsDailySongs?.(owner.providerId) ?? true,
             recommended: recommendedCollections,
+            ...(recentlyPlayed.length > 0 ? {
+                recentlyPlayedCoverUrl: deps.songCoverUrl(recentlyPlayed[0], owner.providerId) || '',
+                recentlyPlayedCount: recentlyPlayed.length,
+            } : {}),
         };
     },
     // 有一块没读到时照常显示读到的部分，但下次进电台页再读一遍（以前整份失败，下次进来也会重读）。

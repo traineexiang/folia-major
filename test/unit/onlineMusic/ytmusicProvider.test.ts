@@ -85,13 +85,19 @@ describe('YouTube Music provider', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0);
         const next = { ...track, videoId: 'NhRQqeb0mds', title: '春泥' };
         request.mockImplementation(async (operation: string) => {
-            if (operation === 'home') return { shelves: [{ title: 'Listen again', items: [{ type: 'track', track }] }] };
+            if (operation === 'history') return { tracks: [track] };
             if (operation === 'up_next') return { tracks: [track, next] };
             throw new Error(operation);
         });
         const fm = await ytmusicProvider.recommendations!.getPersonalFm!();
         expect(fm.map(song => song.id)).toEqual(['NhRQqeb0mds']);
         expect(request).toHaveBeenCalledWith('up_next', { videoId: 'm9SMT5ipbxk' });
+    });
+    it('lists recently played songs from the account history', async () => {
+        request.mockResolvedValue({ tracks: [track] });
+        const songs = await ytmusicProvider.recommendations!.getRecentlyPlayedSongs!();
+        expect(songs.map(song => song.id)).toEqual(['m9SMT5ipbxk']);
+        expect(request).toHaveBeenCalledWith('history');
     });
     it('pages the library playlists by offset', async () => {
         const collections = Array.from({ length: 3 }, (_, index) => ({ id: `VLPL${index}`, kind: 'playlist', title: `P${index}`, subtitle: '', thumbnailUrl: null }));

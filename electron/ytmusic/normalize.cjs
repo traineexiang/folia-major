@@ -44,20 +44,4 @@ const toCollection = node => {
   };
 };
 
-const toShelfItem = node => {
-  if (node?.item_type === 'song' || node?.item_type === 'video' || node?.type === 'PlaylistPanelVideo') {
-    const track = toTrack(node);
-    return track ? { type: 'track', track } : null;
-  }
-  const collection = toCollection(node);
-  return collection ? { type: 'collection', collection } : null;
-};
-
-const toShelves = sections => (Array.isArray(sections) ? sections : [])
-  .map(section => ({
-    title: text(section.header?.title),
-    items: (section.contents ?? []).map(toShelfItem).filter(Boolean),
-  }))
-  .filter(shelf => shelf.title && shelf.items.length > 0);
-
-module.exports = { toTrack, toCollection, toShelves, text };
+module.exports = { toTrack, toCollection, text };

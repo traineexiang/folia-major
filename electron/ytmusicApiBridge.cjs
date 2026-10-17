@@ -10,7 +10,7 @@ const { toYtMusicAudioUrl } = require('./ytmusic/audioProtocol.cjs');
 
 // Sign-in is a pasted cookie header: Google refuses sign-in inside an embedded Electron window
 // ("This browser or app may not be secure"), even with Chrome's user agent and client hints.
-const OPERATIONS = ['status', 'login_cookie', 'logout', 'account', 'audio', 'home', 'search', 'playlist',
+const OPERATIONS = ['status', 'login_cookie', 'logout', 'account', 'audio', 'history', 'search', 'playlist',
   'album', 'library_playlists', 'liked_ids', 'up_next', 'like', 'report_play'];
 const VIDEO_ID = /^[\w-]{11}$/;
 // Playlist ids (PL…, VL…, RD…, LM, OLAK…) and album browse ids (MPRE…); never a URL or path.
@@ -165,7 +165,7 @@ function createYtMusicApiBridge({ store, safeStorage,
       return { ...stream, url: toYtMusicAudioUrl(videoId) };
     },
     account: async () => library.getAccount(await requireSignedIn()),
-    home: async () => library.getHome(await requireSignedIn()),
+    history: async () => library.getHistory(await requireSignedIn()),
     async search(params) {
       const query = String(params?.query ?? '').trim().slice(0, 200);
       if (!query) return { tracks: [], hasMore: false };
