@@ -37,23 +37,27 @@ const headerOf = (header, id) => {
   };
 };
 
+const NETWORK_ERROR = /fetch failed|ENOTFOUND|ECONN|ETIMEDOUT|network/i;
+const signedOut = message => Object.assign(new Error(message), { code: 'auth-required' });
+
+// The account menu is the sign-in check. YouTube answers a dead cookie (signed out, expired, revoked)
+// with no error at all, just signed-out pages: the account menu comes back empty or unparseable. So
+// anything but a named account is a rejected session; only a network failure stays a network failure.
 async function getAccount(yt) {
+  let info;
   try {
-    const info = await yt.account.getInfo();
-    const item = info.contents?.contents?.find(entry => entry.account_name);
-    if (item) {
-      return {
-        name: text(item.account_name),
-        handle: text(item.channel_handle),
-        avatarUrl: item.account_photo?.[0]?.url ?? null,
-      };
-    }
+    info = await yt.account.getInfo();
   } catch (error) {
-    // A rejected session must surface as auth-required (the bridge maps 401/403); anything else only
-    // costs the account name, since a signed-in session is what matters.
-    if (/status code (401|403)/.test(String(error?.message ?? ''))) throw error;
+    if (NETWORK_ERROR.test(String(error?.message ?? ''))) throw error;
+    throw signedOut('YouTube Music account menu unavailable; session signed out');
   }
-  return { name: 'YouTube Music', handle: '', avatarUrl: null };
+  const item = info?.contents?.contents?.find(entry => entry.account_name);
+  if (!item) throw signedOut('YouTube Music account menu has no account; session signed out');
+  return {
+    name: text(item.account_name),
+    handle: text(item.channel_handle),
+    avatarUrl: item.account_photo?.[0]?.url ?? null,
+  };
 }
 
 async function search(yt, { query, limit, offset }) {

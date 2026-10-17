@@ -132,13 +132,18 @@ function createYtMusicApiBridge({ store, safeStorage,
     return stream;
   };
 
+  // youtubei.js counts any cookie as signed in; only YouTube can say whether it still is, so the account
+  // is read before the cookie is kept. A refused cookie (401/403) is classified as auth-required.
   const signIn = async cookie => {
     sessions.set(cookie);
     streams.clear();
-    const yt = await getClient();
-    if (!yt.session.logged_in) {
+    try {
+      const yt = await getClient();
+      if (!yt.session.logged_in) throw Object.assign(new Error('Session rejected'), { code: 'auth-required' });
+      await library.getAccount(yt);
+    } catch (error) {
       sessions.clear();
-      throw Object.assign(new Error('Session rejected'), { code: 'auth-required' });
+      throw error;
     }
     return { signedIn: true };
   };

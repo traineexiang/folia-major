@@ -20,9 +20,11 @@ const cipher = () => ({ isEncryptionAvailable: () => true,
     encryptString: (text: string) => Buffer.from(Buffer.from(text).map(byte => byte ^ 0xa5)),
     decryptString: (data: Buffer) => Buffer.from(data.map(byte => byte ^ 0xa5)).toString() });
 
-const fakeYoutubei = ({ loggedIn = true, basicInfo = vi.fn() } = {}) => {
+const fakeYoutubei = ({ loggedIn = true, basicInfo = vi.fn(),
+    accountInfo = vi.fn(async () => ({ contents: { contents: [{ account_name: 'Listener' }] } })) } = {}) => {
     const create = vi.fn(async (_options: { cookie?: string }) => ({
         session: { logged_in: loggedIn, player: {} },
+        account: { getInfo: accountInfo },
         getBasicInfo: basicInfo,
         actions: { execute: async () => ({ contents_memo: new Map() }) },
     }));
@@ -77,6 +79,32 @@ describe('YouTube Music bridge', () => {
         const bridge = createYtMusicApiBridge({ store, safeStorage: cipher(), loadYoutubei: load });
         expect(await bridge.request('login_cookie', { cookie: COOKIE })).toMatchObject({ ok: false, error: { code: 'auth-required' } });
         expect(store.values.has(SESSION_KEY)).toBe(false);
+    });
+    it('drops a well-formed cookie that YouTube refuses (signed out or expired)', async () => {
+        const store = createStore();
+        const { load } = fakeYoutubei({ accountInfo: vi.fn().mockRejectedValue(new Error('Request failed with status code 401')) });
+        const bridge = createYtMusicApiBridge({ store, safeStorage: cipher(), loadYoutubei: load });
+        expect(await bridge.request('login_cookie', { cookie: COOKIE })).toMatchObject({ ok: false, error: { code: 'auth-required' } });
+        expect(store.values.has(SESSION_KEY)).toBe(false);
+        expect(await bridge.request('status')).toMatchObject({ ok: true, data: { signedIn: false } });
+    });
+    it('drops a cookie YouTube answers with signed-out pages instead of an error', async () => {
+        const store = createStore();
+        const { load } = fakeYoutubei({ accountInfo: vi.fn().mockRejectedValue(new Error('Page contents not found')) });
+        const bridge = createYtMusicApiBridge({ store, safeStorage: cipher(), loadYoutubei: load });
+        expect(await bridge.request('login_cookie', { cookie: COOKIE })).toMatchObject({ ok: false, error: { code: 'auth-required' } });
+        expect(store.values.has(SESSION_KEY)).toBe(false);
+    });
+    it('reports an expired stored session as auth-required, and a network failure as network', async () => {
+        const store = createStore();
+        createYtMusicSessionRepository({ store, safeStorage: cipher() }).set(COOKIE);
+        const accountInfo = vi.fn()
+            .mockResolvedValueOnce({ contents: { contents: [] } })
+            .mockRejectedValueOnce(new Error('fetch failed'));
+        const { load } = fakeYoutubei({ accountInfo });
+        const bridge = createYtMusicApiBridge({ store, safeStorage: cipher(), loadYoutubei: load });
+        expect(await bridge.request('account')).toMatchObject({ ok: false, error: { code: 'auth-required' } });
+        expect(await bridge.request('account')).toMatchObject({ ok: false, error: { code: 'network' } });
     });
     it('requires sign-in for library reads', async () => {
         const { load } = fakeYoutubei();
